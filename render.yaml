@@ -1,11 +1,8 @@
 services:
   - type: static
     name: big-diet-system
-    buildCommand: npm install
+    buildCommand: ""
     staticPublishPath: ./
     plan: free
     pullRequestPreviewsEnabled: true
     autoDeploy: true
-    envVars:
-      - key: NODE_ENV
-        value: production
