@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Healthy Food Subscription System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="styles.css" rel="stylesheet">
+    <style>
+        .table thead th {
+            padding: 20px 30px !important;
+            font-size: 1.1rem !important;
+            font-weight: 600 !important;
+            min-width: 150px !important;
+            text-align: center !important;
+        }
+        .table thead th:first-child {
+            border-top-left-radius: 0 !important;
+            border-bottom-left-radius: 0 !important;
+        }
+        .table thead th:last-child {
+            border-top-right-radius: 0 !important;
+            border-bottom-right-radius: 0 !important;
+        }
+        .table tbody td {
+            padding: 15px 20px !important;
+            text-align: center !important;
+            vertical-align: middle !important;
+        }
+        .table tbody td:first-child {
+            text-align: center !important;
+            font-family: monospace !important;
+        }
+        .table tbody td:nth-child(2),
+        .table tbody td:nth-child(3),
+        .table tbody td:nth-child(4),
+        .table tbody td:nth-child(5) {
+            text-align: center !important;
+            padding: 15px 10px !important;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container">
+            <a class="navbar-brand" href="dashboard.html">big diet</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="dashboard.html">لوحة التحكم</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="customers.html">العملاء</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="subscriptions.html">الاشتراكات</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="daily-registration.html">التسجيل اليومي</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="packages.html">الباقات</a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <button class="btn btn-outline-danger btn-sm" onclick="logout()">تسجيل الخروج</button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container mt-4">
+        <h1 class="mb-4">لوحة التحكم</h1>
+        
+        <!-- Stats Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3 mb-3">
+                <div class="card stats-card">
+                    <div class="card-body text-center">
+                        <div class="stats-number" id="totalCustomers">-</div>
+                        <div class="stats-label">إجمالي العملاء</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card stats-card">
+                    <div class="card-body text-center">
+                        <div class="stats-number" id="activeSubscriptions">-</div>
+                        <div class="stats-label">الاشتراكات النشطة</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card stats-card">
+                    <div class="card-body text-center">
+                        <div class="stats-number" id="totalPackages">-</div>
+                        <div class="stats-label">الباقات المتاحة</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card stats-card">
+                    <div class="card-body text-center">
+                        <div class="stats-number" id="todayMealsCollected">-</div>
+                        <div class="stats-label">تسجيلات اليوم</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="card" id="activityCard">
+            <div class="card-header">
+                <h5 class="mb-0">النشاط الأخير</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>الوقت</th>
+                                <th>النشاط</th>
+                                <th>العميل</th>
+                                <th>التفاصيل</th>
+                                <th>الحالة</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Activity data will be loaded dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="database.js"></script>
+    <script>
+        // Check authentication
+        if (localStorage.getItem('isLoggedIn') !== 'true') {
+            window.location.href = 'login.html';
+        }
+
+        // Dashboard functionality
+        class Dashboard {
+            constructor() {
+                this.currentMonth = new Date().getMonth();
+                this.currentYear = new Date().getFullYear();
+                this.currentPage = 1;
+                this.init();
+            }
+
+            init() {
+                this.loadStats();
+                this.loadRecentActivity();
+                this.setupEventListeners();
+                
+                // Auto-refresh stats every 30 seconds
+                setInterval(() => {
+                    this.loadStats();
+                }, 30000);
+            }
+
+            loadStats() {
+                const stats = db.getDashboardStats();
+                
+                // Update stats cards with proper IDs
+                document.getElementById('totalCustomers').textContent = stats.totalCustomers;
+                document.getElementById('activeSubscriptions').textContent = stats.activeSubscriptions;
+                document.getElementById('totalPackages').textContent = stats.totalPackages;
+                document.getElementById('todayMealsCollected').textContent = stats.todayRegistrations;
+            }
+
+            loadRecentActivity() {
+                const activityData = db.getActivities(this.currentMonth, this.currentYear, this.currentPage, 25);
+                const tbody = document.querySelector('.table tbody');
+                tbody.innerHTML = '';
+
+                if (activityData.activities.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center">لا توجد أنشطة</td></tr>';
+                    return;
+                }
+
+                activityData.activities.forEach(activity => {
+                    const customer = db.getCustomerById(activity.customerId);
+                    const customerName = customer ? customer.name : 'عميل غير معروف';
+                    
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${activity.time}</td>
+                        <td>${activity.type}</td>
+                        <td>${customerName}</td>
+                        <td>${activity.description}</td>
+                        <td><span class="badge bg-success">مكتمل</span></td>
+                    `;
+                    tbody.appendChild(row);
+                });
+
+                this.updatePagination(activityData);
+            }
+
+            updatePagination(activityData) {
+                // Create pagination if it doesn't exist
+                let pagination = document.querySelector('.pagination');
+                if (!pagination) {
+                    pagination = document.createElement('nav');
+                    pagination.className = 'mt-3';
+                    pagination.innerHTML = '<ul class="pagination justify-content-center"></ul>';
+                    // Append to the activity table card specifically
+                    const activityCard = document.getElementById('activityCard');
+                    if (activityCard) {
+                        activityCard.appendChild(pagination);
+                    }
+                }
+
+                const paginationList = pagination.querySelector('ul');
+                paginationList.innerHTML = '';
+
+                // Previous button
+                const prevLi = document.createElement('li');
+                prevLi.className = `page-item ${this.currentPage === 1 ? 'disabled' : ''}`;
+                prevLi.innerHTML = `<a class="page-link" href="#" data-page="${this.currentPage - 1}">السابق</a>`;
+                paginationList.appendChild(prevLi);
+
+                // Page numbers
+                for (let i = 1; i <= activityData.totalPages; i++) {
+                    const li = document.createElement('li');
+                    li.className = `page-item ${i === this.currentPage ? 'active' : ''}`;
+                    li.innerHTML = `<a class="page-link" href="#" data-page="${i}">${i}</a>`;
+                    paginationList.appendChild(li);
+                }
+
+                // Next button
+                const nextLi = document.createElement('li');
+                nextLi.className = `page-item ${this.currentPage === activityData.totalPages ? 'disabled' : ''}`;
+                nextLi.innerHTML = `<a class="page-link" href="#" data-page="${this.currentPage + 1}">التالي</a>`;
+                paginationList.appendChild(nextLi);
+
+                // Add click event listeners
+                paginationList.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    if (e.target.dataset.page) {
+                        this.currentPage = parseInt(e.target.dataset.page);
+                        this.loadRecentActivity();
+                    }
+                });
+            }
+
+            setupEventListeners() {
+                // Month navigation
+                const monthNav = document.createElement('div');
+                monthNav.className = 'd-flex justify-content-between align-items-center mb-3';
+                monthNav.innerHTML = `
+                    <button class="btn btn-outline-primary" id="prevMonth">الشهر السابق</button>
+                    <h5 id="currentMonthDisplay">${this.getMonthName(this.currentMonth)} ${this.currentYear}</h5>
+                    <button class="btn btn-outline-primary" id="nextMonth">الشهر التالي</button>
+                `;
+                
+                const cardHeader = document.querySelector('.card-header');
+                cardHeader.appendChild(monthNav);
+
+                document.getElementById('prevMonth').addEventListener('click', () => {
+                    this.currentMonth--;
+                    if (this.currentMonth < 0) {
+                        this.currentMonth = 11;
+                        this.currentYear--;
+                    }
+                    this.currentPage = 1;
+                    this.loadRecentActivity();
+                    document.getElementById('currentMonthDisplay').textContent = 
+                        `${this.getMonthName(this.currentMonth)} ${this.currentYear}`;
+                });
+
+                document.getElementById('nextMonth').addEventListener('click', () => {
+                    this.currentMonth++;
+                    if (this.currentMonth > 11) {
+                        this.currentMonth = 0;
+                        this.currentYear++;
+                    }
+                    this.currentPage = 1;
+                    this.loadRecentActivity();
+                    document.getElementById('currentMonthDisplay').textContent = 
+                        `${this.getMonthName(this.currentMonth)} ${this.currentYear}`;
+                });
+            }
+
+            getMonthName(month) {
+                const months = [
+                    'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+                    'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
+                ];
+                return months[month];
+            }
+        }
+
+        // Global refresh function
+        window.refreshDashboard = function() {
+            if (window.dashboardInstance) {
+                window.dashboardInstance.loadStats();
+                window.dashboardInstance.loadRecentActivity();
+            }
+        };
+
+        // Initialize dashboard when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            window.dashboardInstance = new Dashboard();
+            
+            // Refresh when page becomes visible (user returns from another page)
+            document.addEventListener('visibilitychange', function() {
+                if (!document.hidden && window.dashboardInstance) {
+                    window.dashboardInstance.loadStats();
+                    window.dashboardInstance.loadRecentActivity();
+                }
+            });
+        });
+
+        // Logout function
+        function logout() {
+            if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
+                localStorage.removeItem('isLoggedIn');
+                localStorage.removeItem('username');
+                window.location.href = 'login.html';
+            }
+        }
+    </script>
+</body>
+</html>
