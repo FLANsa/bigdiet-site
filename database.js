@@ -546,26 +546,4 @@ window.exportDatabase = function() {
     a.download = 'big-dait-database.json';
     a.click();
     URL.revokeObjectURL(url);
-    alert('تم تصدير البيانات بنجاح!');
-};
-
-window.importDatabase = function(input) {
-    const file = input.files[0];
-    if (!file) return;
-    
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        try {
-            const success = window.db.importData(e.target.result);
-            if (success) {
-                alert('تم استيراد البيانات بنجاح! سيتم إعادة تحميل الصفحة.');
-                location.reload();
-            } else {
-                alert('خطأ في استيراد البيانات. تأكد من أن الملف صحيح.');
-            }
-        } catch (error) {
-            alert('خطأ في استيراد البيانات: ' + error.message);
-        }
-    };
-    reader.readAsText(file);
 };
