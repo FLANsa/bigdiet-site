@@ -1,0 +1,26 @@
+{
+  "name": "big-diet-subscription-system",
+  "version": "1.0.0",
+  "description": "Big Diet Healthy Meal Subscription System - Arabic RTL web application",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve -s . -l 3000",
+    "build": "echo 'No build step required for static site'",
+    "dev": "npx serve -s . -l 3000"
+  },
+  "keywords": [
+    "meal-subscription",
+    "healthy-food",
+    "arabic",
+    "rtl",
+    "static-site"
+  ],
+  "author": "FLANsa",
+  "license": "MIT",
+  "devDependencies": {
+    "serve": "^14.2.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
