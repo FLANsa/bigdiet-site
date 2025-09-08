@@ -373,7 +373,7 @@
                 });
             }
 
-            searchCustomer() {
+            async searchCustomer() {
                 const phoneNumber = document.getElementById('phoneNumber').value.trim();
                 const errorMessage = document.getElementById('errorMessage');
                 const subscriptionDetails = document.getElementById('subscriptionDetails');
@@ -388,22 +388,33 @@
                     return;
                 }
 
-                // Search for customer
-                const customer = this.db.getCustomers().find(c => c.phone === phoneNumber);
-                if (!customer) {
-                    this.showError('لم يتم العثور على عميل بهذا الرقم');
-                    return;
-                }
+                try {
+                    // Try Firebase first, then fallback to localStorage
+                    let customer;
+                    if (window.firebaseDB_instance && window.firebaseDB_instance.isOnline) {
+                        customer = await window.firebaseDB_instance.getCustomerByPhone(phoneNumber);
+                    } else {
+                        customer = this.db.getCustomers().find(c => c.phone === phoneNumber);
+                    }
 
-                // Get customer's active subscription
-                const subscription = this.db.getSubscriptionByCustomerId(customer.id);
-                if (!subscription) {
-                    this.showError('لا يوجد اشتراك نشط لهذا العميل');
-                    return;
-                }
+                    if (!customer) {
+                        this.showError('لم يتم العثور على عميل بهذا الرقم');
+                        return;
+                    }
 
-                // Display subscription details
-                this.displaySubscriptionDetails(customer, subscription);
+                    // Get customer's active subscription
+                    const subscription = this.db.getSubscriptionByCustomerId(customer.id);
+                    if (!subscription) {
+                        this.showError('لا يوجد اشتراك نشط لهذا العميل');
+                        return;
+                    }
+
+                    // Display subscription details
+                    this.displaySubscriptionDetails(customer, subscription);
+                } catch (error) {
+                    console.error('Error searching customer:', error);
+                    this.showError('حدث خطأ أثناء البحث. يرجى المحاولة مرة أخرى.');
+                }
             }
 
             showError(message) {

@@ -46,8 +46,8 @@
         
         <form id="loginForm">
             <div class="mb-3">
-                <label for="username" class="form-label">اسم المستخدم</label>
-                <input type="text" class="form-control" id="username" required>
+                <label for="email" class="form-label">البريد الإلكتروني</label>
+                <input type="email" class="form-control" id="email" required>
             </div>
             <div class="mb-3">
                 <label for="password" class="form-label">كلمة المرور</label>
@@ -56,6 +56,8 @@
             <button type="submit" class="btn btn-primary w-100">تسجيل الدخول</button>
         </form>
         
+        <div id="loginError" class="alert alert-danger mt-3" style="display: none;"></div>
+        
         <div class="text-center mt-3">
             <small class="text-muted">
                 للعملاء: <a href="customer-portal.html" class="text-decoration-none">استعلام عن الاشتراك</a>
@@ -63,25 +65,47 @@
         </div>
     </div>
 
+    <!-- Firebase SDK -->
+    <script type="module" src="firebase-config.js"></script>
+    <script src="online-database.js"></script>
     <script src="database.js"></script>
     <script>
         // Simple login system (in real app, this would connect to backend)
-        document.getElementById('loginForm').addEventListener('submit', function(e) {
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            const username = document.getElementById('username').value;
+            const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('loginError');
             
-            // Simple validation (in real app, this would be server-side)
-            if (username === 'admin' && password === 'admin123') {
-                // Store login status
-                localStorage.setItem('isLoggedIn', 'true');
-                localStorage.setItem('username', username);
-                
-                // Redirect to dashboard
-                window.location.href = 'dashboard.html';
-            } else {
-                alert('اسم المستخدم أو كلمة المرور غير صحيحة');
+            // Hide previous errors
+            errorDiv.style.display = 'none';
+            
+            try {
+                // Try Firebase authentication first
+                if (window.firebaseDB_instance && window.firebaseDB_instance.isOnline) {
+                    const result = await window.firebaseDB_instance.signInAdmin(email, password);
+                    if (result.success) {
+                        // Redirect to dashboard
+                        window.location.href = 'dashboard.html';
+                        return;
+                    } else {
+                        throw new Error(result.error);
+                    }
+                } else {
+                    // Fallback to simple validation if Firebase is not available
+                    if (email === 'admin@bigdiet.com' && password === 'admin123') {
+                        localStorage.setItem('isLoggedIn', 'true');
+                        localStorage.setItem('username', 'admin');
+                        window.location.href = 'dashboard.html';
+                        return;
+                    } else {
+                        throw new Error('البريد الإلكتروني أو كلمة المرور غير صحيحة');
+                    }
+                }
+            } catch (error) {
+                errorDiv.textContent = error.message;
+                errorDiv.style.display = 'block';
             }
         });
         
