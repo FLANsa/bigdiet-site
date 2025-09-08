@@ -115,6 +115,39 @@
             </div>
         </div>
 
+        <!-- Data Synchronization Section -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">🔄 مزامنة البيانات بين الأجهزة</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <h6>📤 تصدير البيانات (من هذا الجهاز)</h6>
+                                <p class="text-muted small">احفظ نسخة احتياطية من جميع البيانات على هذا الجهاز</p>
+                                <button class="btn btn-success" onclick="exportDatabase()">
+                                    <i class="fas fa-download"></i> تصدير البيانات
+                                </button>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <h6>📥 استيراد البيانات (إلى هذا الجهاز)</h6>
+                                <p class="text-muted small">استورد البيانات من جهاز آخر (سوف تحل محل البيانات الحالية)</p>
+                                <input type="file" id="importFile" accept=".json" class="form-control mb-2" onchange="importDatabase(this)">
+                                <button class="btn btn-warning" onclick="document.getElementById('importFile').click()">
+                                    <i class="fas fa-upload"></i> اختيار ملف البيانات
+                                </button>
+                            </div>
+                        </div>
+                        <div class="alert alert-info mt-3">
+                            <strong>💡 نصيحة:</strong> لاستخدام البيانات على جهاز آخر، قم بتصدير البيانات من الجهاز الأول، ثم استوردها على الجهاز الثاني.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Recent Activity -->
         <div class="card" id="activityCard">
             <div class="card-header">
