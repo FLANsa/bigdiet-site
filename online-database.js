@@ -213,13 +213,20 @@ async function getDailyRegistrations(limitCount = 200) {
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 async function listDailyRegistrationsByDate(dateStr) {
+  // Use a simpler query to avoid composite index requirement
   const qy = query(
     collection(db, "dailyRegistrations"),
-    where("date", "==", dateStr),
-    orderBy("time", "asc")
+    where("date", "==", dateStr)
   );
   const snap = await getDocs(qy);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const registrations = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  
+  // Sort by time in memory instead of using orderBy in the query
+  return registrations.sort((a, b) => {
+    const timeA = a.time || "00:00";
+    const timeB = b.time || "00:00";
+    return timeA.localeCompare(timeB);
+  });
 }
 async function getTodayRegistrations() { return listDailyRegistrationsByDate(ymd()); }
 

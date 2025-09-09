@@ -131,8 +131,9 @@
             <!-- Today's Registrations -->
             <div class="col-md-6">
                 <div class="card">
-                    <div class="card-header">
+                    <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">تسجيلات اليوم</h5>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="testTodayRegistrations()">اختبار</button>
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
@@ -443,41 +444,51 @@
         }
 
         async loadTodayRegistrations() {
-          const F = window.firebaseDB_instance;
+          try {
+            const F = window.firebaseDB_instance;
 
-          // Loading indicator
-          this.$todayTbody.innerHTML = '<tr><td colspan="6" class="text-center py-3"><div class="spinner-border"></div></td></tr>';
+            // Loading indicator
+            this.$todayTbody.innerHTML = '<tr><td colspan="6" class="text-center py-3"><div class="spinner-border"></div></td></tr>';
 
-          const regs = await F.getTodayRegistrations();
-          if (!regs.length) {
-            this.$todayTbody.innerHTML = '<tr><td colspan="6" class="text-center">لا توجد تسجيلات اليوم</td></tr>';
-            return;
+            console.log('Loading today\'s registrations...');
+            const regs = await F.getTodayRegistrations();
+            console.log('Today\'s registrations:', regs);
+            
+            if (!regs.length) {
+              this.$todayTbody.innerHTML = '<tr><td colspan="6" class="text-center">لا توجد تسجيلات اليوم</td></tr>';
+              return;
+            }
+
+            // Preload all customers once -> map by id
+            const customers = await F.getCustomers();
+            const cMap = new Map(customers.map(c => [c.id, c]));
+
+            this.$todayTbody.innerHTML = '';
+            regs.forEach(reg => {
+              const c = cMap.get(reg.customerId);
+              const name = c ? c.name : 'عميل غير معروف';
+              const type = this.getRegistrationType(reg);
+              const qty  = this.getRegistrationQuantity(reg);
+
+              const tr = document.createElement('tr');
+              tr.innerHTML = `
+                <td>${reg.time || '-'}</td>
+                <td>${name}</td>
+                <td>${type}</td>
+                <td>${qty}</td>
+                <td><span class="badge bg-success">مكتمل</span></td>
+                <td>
+                  <button class="btn btn-sm btn-outline-danger" onclick="deleteRegistration('${reg.id}')">حذف</button>
+                </td>
+              `;
+              this.$todayTbody.appendChild(tr);
+            });
+            
+            console.log('Successfully loaded', regs.length, 'today\'s registrations');
+          } catch (error) {
+            console.error('Error loading today\'s registrations:', error);
+            this.$todayTbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">تعذّر تحميل تسجيلات اليوم: ' + error.message + '</td></tr>';
           }
-
-          // Preload all customers once -> map by id
-          const customers = await F.getCustomers();
-          const cMap = new Map(customers.map(c => [c.id, c]));
-
-          this.$todayTbody.innerHTML = '';
-          regs.forEach(reg => {
-            const c = cMap.get(reg.customerId);
-            const name = c ? c.name : 'عميل غير معروف';
-            const type = this.getRegistrationType(reg);
-            const qty  = this.getRegistrationQuantity(reg);
-
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-              <td>${reg.time || '-'}</td>
-              <td>${name}</td>
-              <td>${type}</td>
-              <td>${qty}</td>
-              <td><span class="badge bg-success">مكتمل</span></td>
-              <td>
-                <button class="btn btn-sm btn-outline-danger" onclick="deleteRegistration('${reg.id}')">حذف</button>
-              </td>
-            `;
-            this.$todayTbody.appendChild(tr);
-          });
         }
 
         getRegistrationType(reg) {
@@ -539,14 +550,36 @@
         alert('الاتصال بالإنترنت غير متوفر. ستتأخر العمليات حتى يعود الاتصال.');
       });
 
-      // Logout
-      function logout() {
-        if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
-          localStorage.removeItem('isLoggedIn');
-          localStorage.removeItem('username');
-          window.location.href = 'login.html';
+        // Test today's registrations
+        async function testTodayRegistrations() {
+          try {
+            console.log('Testing today\'s registrations...');
+            const F = window.firebaseDB_instance;
+            if (!F) {
+              alert('Firebase instance not available');
+              return;
+            }
+            
+            const today = new Date().toISOString().slice(0, 10);
+            console.log('Today\'s date:', today);
+            
+            const regs = await F.getTodayRegistrations();
+            console.log('Today\'s registrations result:', regs);
+            alert('Test successful!\nFound ' + (regs ? regs.length : 0) + ' registrations for today');
+          } catch (error) {
+            console.error('Test error:', error);
+            alert('Test failed: ' + error.message);
+          }
         }
-      }
+
+        // Logout
+        function logout() {
+          if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
+            localStorage.removeItem('isLoggedIn');
+            localStorage.removeItem('username');
+            window.location.href = 'login.html';
+          }
+        }
     </script>
     
     <!-- Firebase SDK -->
