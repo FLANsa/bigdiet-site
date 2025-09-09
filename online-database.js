@@ -115,17 +115,22 @@ async function getSubscriptions() {
  * Returns most-recent active subscription for a customer (or null).
  */
 async function getActiveSubscriptionByCustomerId(customerId) {
+  // First get all subscriptions for the customer, then filter and sort in memory
+  // This avoids the need for a composite index
   const qy = query(
     collection(db, "subscriptions"),
-    where("customerId", "==", customerId),
-    where("status", "==", "نشط"),
-    orderBy("startDate", "desc"),
-    limit(1)
+    where("customerId", "==", customerId)
   );
   const snap = await getDocs(qy);
   if (snap.empty) return null;
-  const d = snap.docs[0];
-  return { id: d.id, ...d.data() };
+  
+  // Filter active subscriptions and sort by startDate
+  const activeSubs = snap.docs
+    .map(d => ({ id: d.id, ...d.data() }))
+    .filter(sub => sub.status === "نشط")
+    .sort((a, b) => (b.startDate || "").localeCompare(a.startDate || ""));
+  
+  return activeSubs.length > 0 ? activeSubs[0] : null;
 }
 
 /**
