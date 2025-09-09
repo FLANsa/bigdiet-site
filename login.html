@@ -43,7 +43,8 @@
 
     <div class="text-center mt-3">
       <small class="text-muted">
-        للعملاء: <a href="customer-portal.html" class="text-decoration-none">استعلام عن الاشتراك</a>
+        للعملاء: <a href="customer-portal.html" class="text-decoration-none">استعلام عن الاشتراك</a><br>
+        للمستخدمين: <a href="user-login.html" class="text-decoration-none">تسجيل دخول المستخدم</a>
       </small>
     </div>
   </div>
@@ -90,8 +91,14 @@
       setTimeout(() => { // tiny delay to show spinner
         if (username === ADMIN_USER && password === ADMIN_PASS) {
           localStorage.setItem('isLoggedIn', 'true');
+          localStorage.setItem('userRole', 'admin');
           localStorage.setItem('username', username);
           window.location.href = 'dashboard.html';
+        } else if (username === 'user' && password === 'user123') {
+          localStorage.setItem('isUserLoggedIn', 'true');
+          localStorage.setItem('userRole', 'user');
+          localStorage.setItem('username', username);
+          window.location.href = 'pricing.html';
         } else {
           showError('اسم المستخدم أو كلمة المرور غير صحيحة');
           setLoading(false);

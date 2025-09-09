@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>أسعار الاشتراكات - نظام الحمية الكبيرة</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-success">
+        <div class="container">
+            <a class="navbar-brand" href="#">نظام الحمية الكبيرة</a>
+            <div class="navbar-nav ms-auto">
+                <span class="navbar-text me-3">مرحباً، <strong id="currentUser">المستخدم</strong></span>
+                <button class="btn btn-outline-light btn-sm" onclick="logout()">تسجيل الخروج</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-12">
+                <h1 class="mb-4">أسعار الاشتراكات</h1>
+                
+                <!-- Packages Pricing -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">الباقات المتاحة</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>اسم الباقة</th>
+                                        <th>السعر الأساسي</th>
+                                        <th>عدد الوجبات</th>
+                                        <th>مدة الاشتراك</th>
+                                        <th>السعر مع السناكس</th>
+                                        <th>السعر بدون السناكس</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="packagesTableBody">
+                                    <tr>
+                                        <td colspan="6" class="text-center py-4">
+                                            <div class="spinner-border" role="status">
+                                                <span class="visually-hidden">جاري التحميل...</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pricing Summary -->
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">ملخص الأسعار</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="alert alert-info">
+                                    <h6><strong>ملاحظة مهمة:</strong></h6>
+                                    <ul class="mb-0">
+                                        <li>السعر الأساسي للباقة يظهر في الجدول أعلاه</li>
+                                        <li>إذا كان الاشتراك يشمل سناكس، يتم إضافة <strong>150 ريال</strong> للسعر الأساسي</li>
+                                        <li>مدة جميع الاشتراكات هي <strong>52 يوم</strong></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">حاسبة السعر</h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="priceCalculator">
+                                    <div class="mb-3">
+                                        <label for="selectedPackage" class="form-label">اختر الباقة</label>
+                                        <select class="form-select" id="selectedPackage" required>
+                                            <option value="">-- اختر الباقة --</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="includeSnacks">
+                                            <label class="form-check-label" for="includeSnacks">
+                                                يشمل السناكس (+150 ريال)
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <button type="submit" class="btn btn-primary">حساب السعر</button>
+                                    </div>
+                                </form>
+                                <div id="priceResult" class="alert alert-success" style="display: none;">
+                                    <h5>السعر النهائي: <span id="finalPrice">0</span> ريال</h5>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module" src="firebase-config.js"></script>
+    <script type="module" src="online-database.js"></script>
+
+    <script>
+        class PricingManager {
+            constructor() {
+                this.packages = [];
+                this.setupEventListeners();
+                this.loadPackages();
+            }
+
+            setupEventListeners() {
+                document.getElementById('priceCalculator').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.calculatePrice();
+                });
+            }
+
+            async loadPackages() {
+                try {
+                    const F = window.firebaseDB_instance;
+                    if (!F) {
+                        throw new Error('Firebase not available');
+                    }
+
+                    this.packages = await F.getPackages();
+                    this.renderPackages();
+                    this.populatePackageSelector();
+                } catch (error) {
+                    console.error('Error loading packages:', error);
+                    document.getElementById('packagesTableBody').innerHTML = 
+                        '<tr><td colspan="6" class="text-center text-danger">تعذّر تحميل الباقات</td></tr>';
+                }
+            }
+
+            renderPackages() {
+                const tbody = document.getElementById('packagesTableBody');
+                
+                if (!this.packages.length) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="text-center">لا توجد باقات متاحة</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = '';
+                this.packages.forEach(pkg => {
+                    const basePrice = Number(pkg.price) || 0;
+                    const priceWithSnacks = basePrice + 150;
+                    const priceWithoutSnacks = basePrice;
+
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${pkg.name || '-'}</td>
+                        <td>${basePrice.toFixed(2)} ريال</td>
+                        <td>${pkg.meals || '-'}</td>
+                        <td>52 يوم</td>
+                        <td><strong class="text-success">${priceWithSnacks.toFixed(2)} ريال</strong></td>
+                        <td><strong class="text-primary">${priceWithoutSnacks.toFixed(2)} ريال</strong></td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            }
+
+            populatePackageSelector() {
+                const select = document.getElementById('selectedPackage');
+                select.innerHTML = '<option value="">-- اختر الباقة --</option>';
+                
+                this.packages.forEach(pkg => {
+                    const option = document.createElement('option');
+                    option.value = pkg.id;
+                    option.textContent = `${pkg.name} - ${(Number(pkg.price) || 0).toFixed(2)} ريال`;
+                    select.appendChild(option);
+                });
+            }
+
+            calculatePrice() {
+                const packageId = document.getElementById('selectedPackage').value;
+                const includeSnacks = document.getElementById('includeSnacks').checked;
+                
+                if (!packageId) {
+                    alert('يرجى اختيار الباقة');
+                    return;
+                }
+
+                const pkg = this.packages.find(p => p.id === packageId);
+                if (!pkg) {
+                    alert('الباقة المختارة غير موجودة');
+                    return;
+                }
+
+                const basePrice = Number(pkg.price) || 0;
+                const snacksPrice = includeSnacks ? 150 : 0;
+                const finalPrice = basePrice + snacksPrice;
+
+                document.getElementById('finalPrice').textContent = finalPrice.toFixed(2);
+                document.getElementById('priceResult').style.display = 'block';
+            }
+        }
+
+        // Initialize pricing manager
+        let pricingManager;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check if user is logged in
+            if (localStorage.getItem('isUserLoggedIn') !== 'true') {
+                window.location.href = 'user-login.html';
+                return;
+            }
+
+            // Set current user name
+            const username = localStorage.getItem('username') || 'المستخدم';
+            document.getElementById('currentUser').textContent = username;
+
+            // Initialize pricing manager
+            pricingManager = new PricingManager();
+        });
+
+        // Logout function
+        function logout() {
+            if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
+                localStorage.removeItem('isUserLoggedIn');
+                localStorage.removeItem('userRole');
+                localStorage.removeItem('username');
+                window.location.href = 'user-login.html';
+            }
+        }
+    </script>
+</body>
+</html>
