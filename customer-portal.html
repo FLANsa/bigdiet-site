@@ -496,13 +496,8 @@
         }
 
         async loadRecentVisits(customerId) {
-          // Fetch all recent registrations, then filter by customer
-          // (If you later add firebaseDB_instance.listDailyRegistrationsByCustomer, switch to that for efficiency)
-          const all = await window.firebaseDB_instance.getDailyRegistrations();
-          const recent = all
-            .filter(reg => reg.customerId === customerId)
-            .sort((a, b) => new Date(b.date + ' ' + (b.time || '00:00')) - new Date(a.date + ' ' + (a.time || '00:00')))
-            .slice(0, 5);
+          // Use the optimized function to get customer-specific registrations
+          const recent = await window.firebaseDB_instance.listDailyRegistrationsByCustomer(customerId, 10);
 
           if (!recent.length) {
             this.$recentList.innerHTML = '<div class="text-center text-muted py-4">لا توجد زيارات سابقة</div>';
