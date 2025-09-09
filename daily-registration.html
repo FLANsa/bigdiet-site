@@ -201,18 +201,18 @@
 
             setupEventListeners() {
                 // Customer search
-                document.getElementById('customerSearch').addEventListener('input', (e) => {
-                    this.searchCustomers(e.target.value);
+                document.getElementById('customerSearch').addEventListener('input', async (e) => {
+                    await this.searchCustomers(e.target.value);
                 });
 
                 // Form submission
-                document.getElementById('registrationForm').addEventListener('submit', (e) => {
+                document.getElementById('registrationForm').addEventListener('submit', async (e) => {
                     e.preventDefault();
-                    this.submitRegistration();
+                    await this.submitRegistration();
                 });
             }
 
-            searchCustomers(query) {
+            async searchCustomers(query) {
                 const searchResults = document.getElementById('searchResults');
                 
                 if (query.length < 2) {
@@ -220,7 +220,18 @@
                     return;
                 }
 
-                const customers = db.searchCustomers(query);
+                let customers;
+                if (window.firebaseDB_instance && window.firebaseDB_instance.isOnline) {
+                    // For Firebase, we'll search by phone number or name
+                    const allCustomers = await window.firebaseDB_instance.getCustomers();
+                    customers = allCustomers.filter(c => 
+                        c.name.toLowerCase().includes(query.toLowerCase()) ||
+                        c.phone.includes(query)
+                    );
+                } else {
+                    customers = db.searchCustomers(query);
+                }
+                
                 searchResults.innerHTML = '';
 
                 if (customers.length === 0) {
@@ -243,9 +254,16 @@
                 });
             }
 
-            selectCustomer(customer) {
+            async selectCustomer(customer) {
                 this.selectedCustomer = customer;
-                const subscription = db.getSubscriptionByCustomerId(customer.id);
+                
+                // Get subscription - use Firebase if available
+                let subscription;
+                if (window.firebaseDB_instance && window.firebaseDB_instance.isOnline) {
+                    subscription = await window.firebaseDB_instance.getActiveSubscriptionByCustomerId(customer.id);
+                } else {
+                    subscription = db.getSubscriptionByCustomerId(customer.id);
+                }
                 
                 // Show customer info
                 document.getElementById('selectedCustomerName').textContent = customer.name;
@@ -261,7 +279,7 @@
                 this.updateMealSnackDropdowns(subscription);
 
                 // Load and show recent visits
-                this.loadRecentVisits(customer.id);
+                await this.loadRecentVisits(customer.id);
             }
 
             updateMealSnackDropdowns(subscription) {
@@ -299,7 +317,7 @@
                 }
             }
 
-            submitRegistration() {
+            async submitRegistration() {
                 if (!this.selectedCustomer) {
                     alert('يرجى اختيار العميل أولاً');
                     return;
@@ -313,7 +331,14 @@
                     return;
                 }
 
-                const subscription = db.getSubscriptionByCustomerId(this.selectedCustomer.id);
+                // Get subscription - use Firebase if available
+                let subscription;
+                if (window.firebaseDB_instance && window.firebaseDB_instance.isOnline) {
+                    subscription = await window.firebaseDB_instance.getActiveSubscriptionByCustomerId(this.selectedCustomer.id);
+                } else {
+                    subscription = db.getSubscriptionByCustomerId(this.selectedCustomer.id);
+                }
+
                 if (!subscription) {
                     alert('العميل لا يملك اشتراك نشط');
                     return;
@@ -329,17 +354,26 @@
                     return;
                 }
 
-                // Add registration
-                const registration = db.addDailyRegistration({
-                    customerId: this.selectedCustomer.id,
-                    meals: meals,
-                    snacks: snacks
-                });
+                // Add registration - use Firebase if available
+                let registration;
+                if (window.firebaseDB_instance && window.firebaseDB_instance.isOnline) {
+                    registration = await window.firebaseDB_instance.addDailyRegistration({
+                        customerId: this.selectedCustomer.id,
+                        meals: meals,
+                        snacks: snacks
+                    });
+                } else {
+                    registration = db.addDailyRegistration({
+                        customerId: this.selectedCustomer.id,
+                        meals: meals,
+                        snacks: snacks
+                    });
+                }
 
                 if (registration) {
                     alert('تم تسجيل الحضور بنجاح');
                     this.resetForm();
-                    this.loadTodayRegistrations();
+                    await this.loadTodayRegistrations();
                 }
             }
 
@@ -352,8 +386,18 @@
                 this.setCurrentTime();
             }
 
-            loadRecentVisits(customerId) {
-                const recentVisits = db.getCustomerRegistrations(customerId, 5);
+            async loadRecentVisits(customerId) {
+                let recentVisits;
+                if (window.firebaseDB_instance && window.firebaseDB_instance.isOnline) {
+                    const allRegistrations = await window.firebaseDB_instance.getDailyRegistrations();
+                    recentVisits = allRegistrations
+                        .filter(reg => reg.customerId === customerId)
+                        .sort((a, b) => new Date(b.date + ' ' + b.time) - new Date(a.date + ' ' + a.time))
+                        .slice(0, 5);
+                } else {
+                    recentVisits = db.getCustomerRegistrations(customerId, 5);
+                }
+                
                 const recentVisitsContainer = document.getElementById('recentVisitsList');
                 const recentVisitsSection = document.getElementById('recentVisitsSection');
                 
@@ -383,8 +427,14 @@
                 recentVisitsSection.style.display = 'block';
             }
 
-            loadTodayRegistrations() {
-                const registrations = db.getTodayRegistrations();
+            async loadTodayRegistrations() {
+                let registrations;
+                if (window.firebaseDB_instance && window.firebaseDB_instance.isOnline) {
+                    registrations = await window.firebaseDB_instance.getTodayRegistrations();
+                } else {
+                    registrations = db.getTodayRegistrations();
+                }
+                
                 const tbody = document.getElementById('todayRegistrationsTableBody');
                 tbody.innerHTML = '';
 
@@ -393,8 +443,15 @@
                     return;
                 }
 
-                registrations.forEach(registration => {
-                    const customer = db.getCustomerById(registration.customerId);
+                for (const registration of registrations) {
+                    let customer;
+                    if (window.firebaseDB_instance && window.firebaseDB_instance.isOnline) {
+                        const allCustomers = await window.firebaseDB_instance.getCustomers();
+                        customer = allCustomers.find(c => c.id === registration.customerId);
+                    } else {
+                        customer = db.getCustomerById(registration.customerId);
+                    }
+                    
                     const registrationType = this.getRegistrationType(registration);
                     const quantity = this.getRegistrationQuantity(registration);
                     
@@ -410,7 +467,7 @@
                         </td>
                     `;
                     tbody.appendChild(row);
-                });
+                }
             }
 
             getRegistrationType(registration) {

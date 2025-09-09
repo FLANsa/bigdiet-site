@@ -402,15 +402,21 @@
                         return;
                     }
 
-                    // Get customer's active subscription
-                    const subscription = this.db.getSubscriptionByCustomerId(customer.id);
+                    // Get customer's active subscription - use Firebase if available
+                    let subscription;
+                    if (window.firebaseDB_instance && window.firebaseDB_instance.isOnline) {
+                        subscription = await window.firebaseDB_instance.getActiveSubscriptionByCustomerId(customer.id);
+                    } else {
+                        subscription = this.db.getSubscriptionByCustomerId(customer.id);
+                    }
+
                     if (!subscription) {
                         this.showError('لا يوجد اشتراك نشط لهذا العميل');
                         return;
                     }
 
                     // Display subscription details
-                    this.displaySubscriptionDetails(customer, subscription);
+                    await this.displaySubscriptionDetails(customer, subscription);
                 } catch (error) {
                     console.error('Error searching customer:', error);
                     this.showError('حدث خطأ أثناء البحث. يرجى المحاولة مرة أخرى.');
@@ -424,8 +430,14 @@
                 errorMessage.style.display = 'block';
             }
 
-            displaySubscriptionDetails(customer, subscription) {
-                const packageData = this.db.getPackageById(subscription.packageId);
+            async displaySubscriptionDetails(customer, subscription) {
+                // Get package data - use Firebase if available
+                let packageData;
+                if (window.firebaseDB_instance && window.firebaseDB_instance.isOnline) {
+                    packageData = await window.firebaseDB_instance.getPackageById(subscription.packageId);
+                } else {
+                    packageData = this.db.getPackageById(subscription.packageId);
+                }
                 
                 // Calculate days left
                 const today = new Date();
@@ -441,7 +453,7 @@
                 document.getElementById('remainingSnacks').textContent = subscription.remainingSnacks;
 
                 // Load recent visits
-                this.loadRecentVisits(customer.id);
+                await this.loadRecentVisits(customer.id);
 
                 // Show subscription details with animation
                 const subscriptionDetails = document.getElementById('subscriptionDetails');
@@ -449,11 +461,20 @@
                 subscriptionDetails.classList.add('fade-in');
             }
 
-            loadRecentVisits(customerId) {
-                const recentVisits = this.db.getDailyRegistrations()
-                    .filter(reg => reg.customerId === customerId)
-                    .sort((a, b) => new Date(b.date + ' ' + b.time) - new Date(a.date + ' ' + a.time))
-                    .slice(0, 5);
+            async loadRecentVisits(customerId) {
+                let recentVisits;
+                if (window.firebaseDB_instance && window.firebaseDB_instance.isOnline) {
+                    const allRegistrations = await window.firebaseDB_instance.getDailyRegistrations();
+                    recentVisits = allRegistrations
+                        .filter(reg => reg.customerId === customerId)
+                        .sort((a, b) => new Date(b.date + ' ' + b.time) - new Date(a.date + ' ' + a.time))
+                        .slice(0, 5);
+                } else {
+                    recentVisits = this.db.getDailyRegistrations()
+                        .filter(reg => reg.customerId === customerId)
+                        .sort((a, b) => new Date(b.date + ' ' + b.time) - new Date(a.date + ' ' + a.time))
+                        .slice(0, 5);
+                }
 
                 const visitsList = document.getElementById('recentVisitsList');
                 

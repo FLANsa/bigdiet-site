@@ -209,6 +209,182 @@ class FirebaseDatabase {
         }
     }
 
+    async getActiveSubscriptionByCustomerId(customerId) {
+        if (!this.isOnline) {
+            return this.getActiveSubscriptionByCustomerIdOffline(customerId);
+        }
+
+        try {
+            const subscriptionsRef = window.firebaseDB.collection(this.db, 'subscriptions');
+            const q = window.firebaseDB.query(
+                subscriptionsRef,
+                window.firebaseDB.where('customerId', '==', customerId),
+                window.firebaseDB.where('status', '==', 'نشط')
+            );
+            
+            const querySnapshot = await window.firebaseDB.getDocs(q);
+            
+            if (!querySnapshot.empty) {
+                const doc = querySnapshot.docs[0];
+                return { id: doc.id, ...doc.data() };
+            }
+            
+            return null;
+        } catch (error) {
+            console.error('Error getting active subscription:', error);
+            return this.getActiveSubscriptionByCustomerIdOffline(customerId);
+        }
+    }
+
+    async getPackageById(packageId) {
+        if (!this.isOnline) {
+            return this.getPackageByIdOffline(packageId);
+        }
+
+        try {
+            const docRef = window.firebaseDB.doc(this.db, 'packages', packageId);
+            const docSnap = await window.firebaseDB.getDoc(docRef);
+            
+            if (docSnap.exists()) {
+                return { id: docSnap.id, ...docSnap.data() };
+            }
+            
+            return null;
+        } catch (error) {
+            console.error('Error getting package by ID:', error);
+            return this.getPackageByIdOffline(packageId);
+        }
+    }
+
+    // Daily Registration Management
+    async addDailyRegistration(registration) {
+        if (!this.isOnline) {
+            return this.addDailyRegistrationOffline(registration);
+        }
+
+        try {
+            const docRef = await window.firebaseDB.addDoc(
+                window.firebaseDB.collection(this.db, 'dailyRegistrations'),
+                registration
+            );
+            
+            return { id: docRef.id, ...registration };
+        } catch (error) {
+            console.error('Error adding daily registration:', error);
+            return this.addDailyRegistrationOffline(registration);
+        }
+    }
+
+    async getTodayRegistrations() {
+        if (!this.isOnline) {
+            return this.getTodayRegistrationsOffline();
+        }
+
+        try {
+            const today = new Date().toISOString().split('T')[0];
+            const registrationsRef = window.firebaseDB.collection(this.db, 'dailyRegistrations');
+            const q = window.firebaseDB.query(
+                registrationsRef,
+                window.firebaseDB.where('date', '==', today)
+            );
+            
+            const querySnapshot = await window.firebaseDB.getDocs(q);
+            
+            const registrations = [];
+            querySnapshot.forEach((doc) => {
+                registrations.push({ id: doc.id, ...doc.data() });
+            });
+            
+            return registrations;
+        } catch (error) {
+            console.error('Error getting today registrations:', error);
+            return this.getTodayRegistrationsOffline();
+        }
+    }
+
+    async searchCustomersByPhone(phone) {
+        if (!this.isOnline) {
+            return this.searchCustomersByPhoneOffline(phone);
+        }
+
+        try {
+            const customersRef = window.firebaseDB.collection(this.db, 'customers');
+            const q = window.firebaseDB.query(
+                customersRef,
+                window.firebaseDB.where('phone', '==', phone)
+            );
+            
+            const querySnapshot = await window.firebaseDB.getDocs(q);
+            
+            if (!querySnapshot.empty) {
+                const doc = querySnapshot.docs[0];
+                return { id: doc.id, ...doc.data() };
+            }
+            
+            return null;
+        } catch (error) {
+            console.error('Error searching customers by phone:', error);
+            return this.searchCustomersByPhoneOffline(phone);
+        }
+    }
+
+    // Dashboard Statistics
+    async getDashboardStats() {
+        if (!this.isOnline) {
+            return this.getDashboardStatsOffline();
+        }
+
+        try {
+            const today = new Date().toISOString().split('T')[0];
+            
+            // Get all collections in parallel
+            const [customersSnapshot, subscriptionsSnapshot, packagesSnapshot, registrationsSnapshot] = await Promise.all([
+                window.firebaseDB.getDocs(window.firebaseDB.collection(this.db, 'customers')),
+                window.firebaseDB.getDocs(window.firebaseDB.collection(this.db, 'subscriptions')),
+                window.firebaseDB.getDocs(window.firebaseDB.collection(this.db, 'packages')),
+                window.firebaseDB.getDocs(window.firebaseDB.collection(this.db, 'dailyRegistrations'))
+            ]);
+
+            const customers = [];
+            customersSnapshot.forEach((doc) => {
+                customers.push({ id: doc.id, ...doc.data() });
+            });
+
+            const subscriptions = [];
+            subscriptionsSnapshot.forEach((doc) => {
+                subscriptions.push({ id: doc.id, ...doc.data() });
+            });
+
+            const packages = [];
+            packagesSnapshot.forEach((doc) => {
+                packages.push({ id: doc.id, ...doc.data() });
+            });
+
+            const registrations = [];
+            registrationsSnapshot.forEach((doc) => {
+                registrations.push({ id: doc.id, ...doc.data() });
+            });
+
+            const activeSubscriptions = subscriptions.filter(s => 
+                s.status === 'نشط' && s.endDate >= today && s.remainingMeals > 0
+            );
+
+            const todayRegistrations = registrations.filter(r => r.date === today);
+            const todayMealsCollected = todayRegistrations.reduce((sum, r) => sum + (r.meals || 0), 0);
+
+            return {
+                totalCustomers: customers.length,
+                activeSubscriptions: activeSubscriptions.length,
+                totalPackages: packages.filter(p => p.status === 'نشط').length,
+                todayRegistrations: todayRegistrations.length,
+                todayMealsCollected: todayMealsCollected
+            };
+        } catch (error) {
+            console.error('Error getting dashboard stats:', error);
+            return this.getDashboardStatsOffline();
+        }
+    }
+
     // Daily Registration
     async addDailyRegistration(registration) {
         if (!this.isOnline) {
@@ -318,6 +494,10 @@ class FirebaseDatabase {
         return data.customers.find(customer => customer.phone === phone) || null;
     }
 
+    searchCustomersByPhoneOffline(phone) {
+        return this.getCustomerByPhoneOffline(phone);
+    }
+
     updateCustomerOffline(customerId, updates) {
         const data = this.getOfflineData();
         const index = data.customers.findIndex(c => c.id == customerId);
@@ -398,6 +578,42 @@ class FirebaseDatabase {
     getActivitiesOffline() {
         const data = this.getOfflineData();
         return data.activities;
+    }
+
+    getActiveSubscriptionByCustomerIdOffline(customerId) {
+        const data = this.getOfflineData();
+        return data.subscriptions.find(s => s.customerId == customerId && s.status === 'نشط') || null;
+    }
+
+    getPackageByIdOffline(packageId) {
+        const data = this.getOfflineData();
+        return data.packages.find(p => p.id == packageId) || null;
+    }
+
+    getTodayRegistrationsOffline() {
+        const data = this.getOfflineData();
+        const today = new Date().toISOString().split('T')[0];
+        return data.dailyRegistrations.filter(r => r.date === today);
+    }
+
+    getDashboardStatsOffline() {
+        const data = this.getOfflineData();
+        const today = new Date().toISOString().split('T')[0];
+        
+        const activeSubscriptions = data.subscriptions.filter(s => 
+            s.status === 'نشط' && s.endDate >= today && s.remainingMeals > 0
+        );
+        
+        const todayRegistrations = data.dailyRegistrations.filter(r => r.date === today);
+        const todayMealsCollected = todayRegistrations.reduce((sum, r) => sum + (r.meals || 0), 0);
+
+        return {
+            totalCustomers: data.customers.length,
+            activeSubscriptions: activeSubscriptions.length,
+            totalPackages: data.packages.filter(p => p.status === 'نشط').length,
+            todayRegistrations: todayRegistrations.length,
+            todayMealsCollected: todayMealsCollected
+        };
     }
 
     getOfflineData() {

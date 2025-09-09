@@ -158,19 +158,24 @@
                 this.init();
             }
 
-            init() {
-                this.loadStats();
-                this.loadRecentActivity();
+            async init() {
+                await this.loadStats();
+                await this.loadRecentActivity();
                 this.setupEventListeners();
                 
                 // Auto-refresh stats every 30 seconds
-                setInterval(() => {
-                    this.loadStats();
+                setInterval(async () => {
+                    await this.loadStats();
                 }, 30000);
             }
 
-            loadStats() {
-                const stats = db.getDashboardStats();
+            async loadStats() {
+                let stats;
+                if (window.firebaseDB_instance && window.firebaseDB_instance.isOnline) {
+                    stats = await window.firebaseDB_instance.getDashboardStats();
+                } else {
+                    stats = db.getDashboardStats();
+                }
                 
                 // Update stats cards with proper IDs
                 document.getElementById('totalCustomers').textContent = stats.totalCustomers;
@@ -179,8 +184,38 @@
                 document.getElementById('todayMealsCollected').textContent = stats.todayRegistrations;
             }
 
-            loadRecentActivity() {
-                const activityData = db.getActivities(this.currentMonth, this.currentYear, this.currentPage, 25);
+            async loadRecentActivity() {
+                let activityData;
+                if (window.firebaseDB_instance && window.firebaseDB_instance.isOnline) {
+                    // For Firebase, we'll get all activities and filter them
+                    const allActivities = await window.firebaseDB_instance.getActivities();
+                    const filteredActivities = allActivities.filter(activity => {
+                        const activityDate = new Date(activity.date);
+                        return activityDate.getMonth() === this.currentMonth && 
+                               activityDate.getFullYear() === this.currentYear;
+                    });
+                    
+                    // Sort and paginate
+                    filteredActivities.sort((a, b) => {
+                        const dateA = new Date(a.date + ' ' + a.time);
+                        const dateB = new Date(b.date + ' ' + b.time);
+                        return dateB - dateA;
+                    });
+                    
+                    const startIndex = (this.currentPage - 1) * 25;
+                    const endIndex = startIndex + 25;
+                    const paginatedActivities = filteredActivities.slice(startIndex, endIndex);
+                    
+                    activityData = {
+                        activities: paginatedActivities,
+                        total: filteredActivities.length,
+                        page: this.currentPage,
+                        totalPages: Math.ceil(filteredActivities.length / 25)
+                    };
+                } else {
+                    activityData = db.getActivities(this.currentMonth, this.currentYear, this.currentPage, 25);
+                }
+                
                 const tbody = document.querySelector('.table tbody');
                 tbody.innerHTML = '';
 
@@ -189,8 +224,15 @@
                     return;
                 }
 
-                activityData.activities.forEach(activity => {
-                    const customer = db.getCustomerById(activity.customerId);
+                for (const activity of activityData.activities) {
+                    let customer;
+                    if (window.firebaseDB_instance && window.firebaseDB_instance.isOnline) {
+                        const allCustomers = await window.firebaseDB_instance.getCustomers();
+                        customer = allCustomers.find(c => c.id === activity.customerId);
+                    } else {
+                        customer = db.getCustomerById(activity.customerId);
+                    }
+                    
                     const customerName = customer ? customer.name : 'عميل غير معروف';
                     
                     const row = document.createElement('tr');
@@ -202,7 +244,7 @@
                         <td><span class="badge bg-success">مكتمل</span></td>
                     `;
                     tbody.appendChild(row);
-                });
+                }
 
                 this.updatePagination(activityData);
             }
@@ -245,11 +287,11 @@
                 paginationList.appendChild(nextLi);
 
                 // Add click event listeners
-                paginationList.addEventListener('click', (e) => {
+                paginationList.addEventListener('click', async (e) => {
                     e.preventDefault();
                     if (e.target.dataset.page) {
                         this.currentPage = parseInt(e.target.dataset.page);
-                        this.loadRecentActivity();
+                        await this.loadRecentActivity();
                     }
                 });
             }
@@ -267,26 +309,26 @@
                 const cardHeader = document.querySelector('.card-header');
                 cardHeader.appendChild(monthNav);
 
-                document.getElementById('prevMonth').addEventListener('click', () => {
+                document.getElementById('prevMonth').addEventListener('click', async () => {
                     this.currentMonth--;
                     if (this.currentMonth < 0) {
                         this.currentMonth = 11;
                         this.currentYear--;
                     }
                     this.currentPage = 1;
-                    this.loadRecentActivity();
+                    await this.loadRecentActivity();
                     document.getElementById('currentMonthDisplay').textContent = 
                         `${this.getMonthName(this.currentMonth)} ${this.currentYear}`;
                 });
 
-                document.getElementById('nextMonth').addEventListener('click', () => {
+                document.getElementById('nextMonth').addEventListener('click', async () => {
                     this.currentMonth++;
                     if (this.currentMonth > 11) {
                         this.currentMonth = 0;
                         this.currentYear++;
                     }
                     this.currentPage = 1;
-                    this.loadRecentActivity();
+                    await this.loadRecentActivity();
                     document.getElementById('currentMonthDisplay').textContent = 
                         `${this.getMonthName(this.currentMonth)} ${this.currentYear}`;
                 });
