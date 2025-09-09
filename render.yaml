@@ -1,8 +1,0 @@
-services:
-  - type: static
-    name: big-diet-system
-    buildCommand: ""
-    staticPublishPath: ./
-    plan: free
-    pullRequestPreviewsEnabled: true
-    autoDeploy: true
