@@ -143,221 +143,320 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Check authentication
-        if (localStorage.getItem('isLoggedIn') !== 'true') {
-            window.location.href = 'login.html';
+      // Auth gate
+      if (localStorage.getItem('isLoggedIn') !== 'true') {
+        window.location.href = 'login.html';
+      }
+
+      // ---------- Helpers ----------
+      const RIYADH_TZ = 'Asia/Riyadh';
+
+      async function waitForFirebaseInstance(timeout = 8000) {
+        const start = Date.now();
+        while (!window.firebaseDB_instance) {
+          if (Date.now() - start > timeout) throw new Error('Firebase not ready');
+          await new Promise(r => setTimeout(r, 30));
+        }
+        return window.firebaseDB_instance;
+      }
+
+      // Format a local date string in Riyadh and return a Date object
+      function dateInRiyadh(y, m, d, hh = 0, mm = 0, ss = 0) {
+        // Compose ISO like "YYYY-MM-DDTHH:MM:SS+03:00"
+        const pad = (n) => String(n).padStart(2, '0');
+        const iso = `${y}-${pad(m+1)}-${pad(d)}T${pad(hh)}:${pad(mm)}:${pad(ss)}+03:00`;
+        return new Date(iso);
+      }
+
+      // Parse activity.date/time that might be:
+      // - "YYYY-MM-DD" and "HH:MM"
+      // - Firestore Timestamp {seconds, nanoseconds}
+      // Return a Date in Riyadh tz for correct month filtering/sorting
+      function parseActivityDateTimeRiyadh(dateField, timeField) {
+        // Timestamp
+        if (dateField && typeof dateField === 'object' && typeof dateField.seconds === 'number') {
+          const d = new Date(dateField.seconds * 1000);
+          const y = d.toLocaleString('en-CA', { timeZone: RIYADH_TZ, year: 'numeric' });
+          const m = d.toLocaleString('en-CA', { timeZone: RIYADH_TZ, month: '2-digit' }) - 1;
+          const day = d.toLocaleString('en-CA', { timeZone: RIYADH_TZ, day: '2-digit' });
+          const hh = Number(d.toLocaleString('en-GB', { timeZone: RIYADH_TZ, hour: '2-digit', hour12: false }));
+          const mm = Number(d.toLocaleString('en-GB', { timeZone: RIYADH_TZ, minute: '2-digit' }));
+          return dateInRiyadh(Number(y), m, Number(day), hh, mm, 0);
         }
 
-        // Dashboard functionality
-        class Dashboard {
-            constructor() {
-                this.currentMonth = new Date().getMonth();
-                this.currentYear = new Date().getFullYear();
-                this.currentPage = 1;
-                this.init();
-            }
-
-            async init() {
-                await this.loadStats();
-                await this.loadRecentActivity();
-                this.setupEventListeners();
-                
-                // Auto-refresh stats every 30 seconds
-                setInterval(async () => {
-                    await this.loadStats();
-                }, 30000);
-            }
-
-            async loadStats() {
-                // Use Firebase only
-                const stats = await window.firebaseDB_instance.getDashboardStats();
-                
-                // Update stats cards with proper IDs
-                document.getElementById('totalCustomers').textContent = stats.totalCustomers;
-                document.getElementById('activeSubscriptions').textContent = stats.activeSubscriptions;
-                document.getElementById('totalPackages').textContent = stats.totalPackages;
-                document.getElementById('todayMealsCollected').textContent = stats.todayRegistrations;
-            }
-
-            async loadRecentActivity() {
-                // Use Firebase only - get all activities and filter them
-                const allActivities = await window.firebaseDB_instance.getActivities();
-                const filteredActivities = allActivities.filter(activity => {
-                    const activityDate = new Date(activity.date);
-                    return activityDate.getMonth() === this.currentMonth && 
-                           activityDate.getFullYear() === this.currentYear;
-                });
-                
-                // Sort and paginate
-                filteredActivities.sort((a, b) => {
-                    const dateA = new Date(a.date + ' ' + a.time);
-                    const dateB = new Date(b.date + ' ' + b.time);
-                    return dateB - dateA;
-                });
-                
-                const startIndex = (this.currentPage - 1) * 25;
-                const endIndex = startIndex + 25;
-                const paginatedActivities = filteredActivities.slice(startIndex, endIndex);
-                
-                const activityData = {
-                    activities: paginatedActivities,
-                    total: filteredActivities.length,
-                    page: this.currentPage,
-                    totalPages: Math.ceil(filteredActivities.length / 25)
-                };
-                
-                const tbody = document.querySelector('.table tbody');
-                tbody.innerHTML = '';
-
-                if (activityData.activities.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" class="text-center">لا توجد أنشطة</td></tr>';
-                    return;
-                }
-
-                for (const activity of activityData.activities) {
-                    // Get customer from Firebase
-                    const allCustomers = await window.firebaseDB_instance.getCustomers();
-                    const customer = allCustomers.find(c => c.id === activity.customerId);
-                    
-                    const customerName = customer ? customer.name : 'عميل غير معروف';
-                    
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${activity.time}</td>
-                        <td>${activity.type}</td>
-                        <td>${customerName}</td>
-                        <td>${activity.description}</td>
-                        <td><span class="badge bg-success">مكتمل</span></td>
-                    `;
-                    tbody.appendChild(row);
-                }
-
-                this.updatePagination(activityData);
-            }
-
-            updatePagination(activityData) {
-                // Create pagination if it doesn't exist
-                let pagination = document.querySelector('.pagination');
-                if (!pagination) {
-                    pagination = document.createElement('nav');
-                    pagination.className = 'mt-3';
-                    pagination.innerHTML = '<ul class="pagination justify-content-center"></ul>';
-                    // Append to the activity table card specifically
-                    const activityCard = document.getElementById('activityCard');
-                    if (activityCard) {
-                        activityCard.appendChild(pagination);
-                    }
-                }
-
-                const paginationList = pagination.querySelector('ul');
-                paginationList.innerHTML = '';
-
-                // Previous button
-                const prevLi = document.createElement('li');
-                prevLi.className = `page-item ${this.currentPage === 1 ? 'disabled' : ''}`;
-                prevLi.innerHTML = `<a class="page-link" href="#" data-page="${this.currentPage - 1}">السابق</a>`;
-                paginationList.appendChild(prevLi);
-
-                // Page numbers
-                for (let i = 1; i <= activityData.totalPages; i++) {
-                    const li = document.createElement('li');
-                    li.className = `page-item ${i === this.currentPage ? 'active' : ''}`;
-                    li.innerHTML = `<a class="page-link" href="#" data-page="${i}">${i}</a>`;
-                    paginationList.appendChild(li);
-                }
-
-                // Next button
-                const nextLi = document.createElement('li');
-                nextLi.className = `page-item ${this.currentPage === activityData.totalPages ? 'disabled' : ''}`;
-                nextLi.innerHTML = `<a class="page-link" href="#" data-page="${this.currentPage + 1}">التالي</a>`;
-                paginationList.appendChild(nextLi);
-
-                // Add click event listeners
-                paginationList.addEventListener('click', async (e) => {
-                    e.preventDefault();
-                    if (e.target.dataset.page) {
-                        this.currentPage = parseInt(e.target.dataset.page);
-                        await this.loadRecentActivity();
-                    }
-                });
-            }
-
-            setupEventListeners() {
-                // Month navigation
-                const monthNav = document.createElement('div');
-                monthNav.className = 'd-flex justify-content-between align-items-center mb-3';
-                monthNav.innerHTML = `
-                    <button class="btn btn-outline-primary" id="prevMonth">الشهر السابق</button>
-                    <h5 id="currentMonthDisplay">${this.getMonthName(this.currentMonth)} ${this.currentYear}</h5>
-                    <button class="btn btn-outline-primary" id="nextMonth">الشهر التالي</button>
-                `;
-                
-                const cardHeader = document.querySelector('.card-header');
-                cardHeader.appendChild(monthNav);
-
-                document.getElementById('prevMonth').addEventListener('click', async () => {
-                    this.currentMonth--;
-                    if (this.currentMonth < 0) {
-                        this.currentMonth = 11;
-                        this.currentYear--;
-                    }
-                    this.currentPage = 1;
-                    await this.loadRecentActivity();
-                    document.getElementById('currentMonthDisplay').textContent = 
-                        `${this.getMonthName(this.currentMonth)} ${this.currentYear}`;
-                });
-
-                document.getElementById('nextMonth').addEventListener('click', async () => {
-                    this.currentMonth++;
-                    if (this.currentMonth > 11) {
-                        this.currentMonth = 0;
-                        this.currentYear++;
-                    }
-                    this.currentPage = 1;
-                    await this.loadRecentActivity();
-                    document.getElementById('currentMonthDisplay').textContent = 
-                        `${this.getMonthName(this.currentMonth)} ${this.currentYear}`;
-                });
-            }
-
-            getMonthName(month) {
-                const months = [
-                    'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
-                    'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
-                ];
-                return months[month];
-            }
+        // String date + time
+        if (typeof dateField === 'string') {
+          const [y, m, d] = dateField.split('-').map(Number);
+          let hh = 0, mm = 0;
+          if (typeof timeField === 'string' && timeField.includes(':')) {
+            const parts = timeField.split(':');
+            hh = Number(parts[0] || 0);
+            mm = Number(parts[1] || 0);
+          }
+          return dateInRiyadh(y, (m - 1), d, hh, mm, 0);
         }
 
-        // Global refresh function
-        window.refreshDashboard = function() {
-            if (window.dashboardInstance) {
-                window.dashboardInstance.loadStats();
-                window.dashboardInstance.loadRecentActivity();
-            }
-        };
+        // Fallback: try to construct
+        const fallback = new Date(dateField || Date.now());
+        return new Date(fallback.toLocaleString('en-US', { timeZone: RIYADH_TZ }));
+      }
 
-        // Initialize dashboard when page loads
-        document.addEventListener('DOMContentLoaded', function() {
-            window.dashboardInstance = new Dashboard();
-            
-            // Refresh when page becomes visible (user returns from another page)
-            document.addEventListener('visibilitychange', function() {
-                if (!document.hidden && window.dashboardInstance) {
-                    window.dashboardInstance.loadStats();
-                    window.dashboardInstance.loadRecentActivity();
-                }
+      function monthNameArabic(m) {
+        return [
+          'يناير','فبراير','مارس','أبريل','مايو','يونيو',
+          'يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'
+        ][m];
+      }
+
+      // ---------- Dashboard ----------
+      class Dashboard {
+        constructor() {
+          const now = new Date(new Date().toLocaleString('en-US', { timeZone: RIYADH_TZ }));
+          this.currentMonth = now.getMonth();
+          this.currentYear = now.getFullYear();
+          this.currentPage = 1;
+          this.pageSize = 25;
+
+          this.$tbody = document.querySelector('#activityCard tbody');
+          this.$stats = {
+            totalCustomers: document.getElementById('totalCustomers'),
+            activeSubscriptions: document.getElementById('activeSubscriptions'),
+            totalPackages: document.getElementById('totalPackages'),
+            todayMealsCollected: document.getElementById('todayMealsCollected')
+          };
+
+          // Build month nav once (inside activity card header)
+          this.setupMonthNav();
+
+          this._paginationHandlerBound = this._paginationHandler.bind(this);
+          this.setupPaginationShell();
+
+          this.init();
+        }
+
+        async init() {
+          await waitForFirebaseInstance();
+          await this.loadStats();
+          await this.loadRecentActivity();
+
+          // Auto-refresh stats every 30s
+          this._statsInterval = setInterval(() => this.loadStats(), 30000);
+
+          // Refresh when page becomes visible
+          document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+              this.loadStats();
+              this.loadRecentActivity();
+            }
+          });
+        }
+
+        setStatsLoading(isLoading) {
+          const val = isLoading ? '—' : null;
+          if (isLoading) {
+            this.$stats.totalCustomers.textContent = '…';
+            this.$stats.activeSubscriptions.textContent = '…';
+            this.$stats.totalPackages.textContent = '…';
+            this.$stats.todayMealsCollected.textContent = '…';
+          }
+        }
+
+        async loadStats() {
+          try {
+            this.setStatsLoading(true);
+            const F = window.firebaseDB_instance;
+            const stats = await F.getDashboardStats();
+            this.$stats.totalCustomers.textContent = stats.totalCustomers ?? 0;
+            this.$stats.activeSubscriptions.textContent = stats.activeSubscriptions ?? 0;
+            this.$stats.totalPackages.textContent = stats.totalPackages ?? 0;
+            this.$stats.todayMealsCollected.textContent = stats.todayRegistrations ?? 0;
+          } catch (e) {
+            console.error('Stats error', e);
+            this.$stats.totalCustomers.textContent = '—';
+            this.$stats.activeSubscriptions.textContent = '—';
+            this.$stats.totalPackages.textContent = '—';
+            this.$stats.todayMealsCollected.textContent = '—';
+          } finally {
+            this.setStatsLoading(false);
+          }
+        }
+
+        setActivityLoading() {
+          this.$tbody.innerHTML = `
+            <tr><td colspan="5" class="text-center py-4">
+              <div class="spinner-border"></div>
+            </td></tr>`;
+        }
+
+        async loadRecentActivity() {
+          try {
+            this.setActivityLoading();
+            const F = window.firebaseDB_instance;
+
+            // Load all activities, then filter current month in Riyadh
+            const [activities, customers] = await Promise.all([
+              F.getActivities(),
+              F.getCustomers()
+            ]);
+            const cMap = new Map(customers.map(c => [c.id, c.name || '']));
+
+            // Filter by selected Riyadh month
+            const filtered = activities.filter(a => {
+              const dt = parseActivityDateTimeRiyadh(a.date, a.time);
+              return dt.getFullYear() === this.currentYear && dt.getMonth() === this.currentMonth;
             });
-        });
 
-        // Logout function
-        function logout() {
-            if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
-                localStorage.removeItem('isLoggedIn');
-                localStorage.removeItem('username');
-                window.location.href = 'login.html';
+            // Sort desc by datetime
+            filtered.sort((a, b) => {
+              const da = parseActivityDateTimeRiyadh(a.date, a.time);
+              const db = parseActivityDateTimeRiyadh(b.date, b.time);
+              return db - da;
+            });
+
+            // Pagination
+            const total = filtered.length;
+            const totalPages = Math.max(1, Math.ceil(total / this.pageSize));
+            if (this.currentPage > totalPages) this.currentPage = totalPages;
+
+            const start = (this.currentPage - 1) * this.pageSize;
+            const pageItems = filtered.slice(start, start + this.pageSize);
+
+            // Render
+            this.$tbody.innerHTML = '';
+            if (!pageItems.length) {
+              this.$tbody.innerHTML = '<tr><td colspan="5" class="text-center">لا توجد أنشطة</td></tr>';
+            } else {
+              pageItems.forEach(a => {
+                const name = cMap.get(a.customerId) || 'عميل غير معروف';
+                const timeText = a.time || '—';
+                const typeText = a.type || '—';
+                const desc = a.description || '—';
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                  <td>${timeText}</td>
+                  <td>${typeText}</td>
+                  <td>${name}</td>
+                  <td>${desc}</td>
+                  <td><span class="badge bg-success">مكتمل</span></td>
+                `;
+                this.$tbody.appendChild(tr);
+              });
             }
+
+            // Update pagination UI
+            this.updatePagination(total, totalPages);
+          } catch (e) {
+            console.error('Activity error', e);
+            this.$tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">تعذّر تحميل النشاط</td></tr>';
+          }
         }
+
+        setupMonthNav() {
+          const cardHeader = document.querySelector('#activityCard .card-header');
+          const monthNav = document.createElement('div');
+          monthNav.className = 'd-flex justify-content-between align-items-center mb-3';
+          monthNav.innerHTML = `
+            <button class="btn btn-outline-primary" id="prevMonth">الشهر السابق</button>
+            <h5 id="currentMonthDisplay">${monthNameArabic(this.currentMonth)} ${this.currentYear}</h5>
+            <button class="btn btn-outline-primary" id="nextMonth">الشهر التالي</button>
+          `;
+          cardHeader.appendChild(monthNav);
+
+          document.getElementById('prevMonth').addEventListener('click', async () => {
+            this.currentMonth--;
+            if (this.currentMonth < 0) {
+              this.currentMonth = 11;
+              this.currentYear--;
+            }
+            this.currentPage = 1;
+            document.getElementById('currentMonthDisplay').textContent = `${monthNameArabic(this.currentMonth)} ${this.currentYear}`;
+            await this.loadRecentActivity();
+          });
+
+          document.getElementById('nextMonth').addEventListener('click', async () => {
+            this.currentMonth++;
+            if (this.currentMonth > 11) {
+              this.currentMonth = 0;
+              this.currentYear++;
+            }
+            this.currentPage = 1;
+            document.getElementById('currentMonthDisplay').textContent = `${monthNameArabic(this.currentMonth)} ${this.currentYear}`;
+            await this.loadRecentActivity();
+          });
+        }
+
+        setupPaginationShell() {
+          // Create once under the activity card
+          let nav = document.querySelector('#activityCard nav.pagination-shell');
+          if (!nav) {
+            nav = document.createElement('nav');
+            nav.className = 'pagination-shell mt-3';
+            nav.innerHTML = '<ul class="pagination justify-content-center mb-0"></ul>';
+            document.getElementById('activityCard').appendChild(nav);
+          }
+          const ul = nav.querySelector('ul');
+          // Replace handler safely (event delegation)
+          ul.removeEventListener('click', this._paginationHandlerBound);
+          ul.addEventListener('click', this._paginationHandlerBound);
+        }
+
+        _paginationHandler(e) {
+          const a = e.target.closest('a[data-page]');
+          if (!a) return;
+          e.preventDefault();
+          const p = Number(a.dataset.page);
+          if (!Number.isFinite(p) || p < 1) return;
+          this.currentPage = p;
+          this.loadRecentActivity();
+        }
+
+        updatePagination(total, totalPages) {
+          const ul = document.querySelector('#activityCard nav.pagination-shell ul');
+          ul.innerHTML = '';
+
+          const addItem = (label, page, disabled = false, active = false) => {
+            const li = document.createElement('li');
+            li.className = `page-item ${disabled ? 'disabled' : ''} ${active ? 'active' : ''}`;
+            li.innerHTML = `<a class="page-link" href="#" data-page="${page}">${label}</a>`;
+            ul.appendChild(li);
+          };
+
+          const prevPage = Math.max(1, this.currentPage - 1);
+          const nextPage = Math.min(totalPages, this.currentPage + 1);
+
+          addItem('السابق', prevPage, this.currentPage === 1);
+          for (let i = 1; i <= totalPages; i++) addItem(String(i), i, false, i === this.currentPage);
+          addItem('التالي', nextPage, this.currentPage === totalPages);
+        }
+      }
+
+      // Global refresh function (kept for compatibility)
+      window.refreshDashboard = function() {
+        if (window.dashboardInstance) {
+          window.dashboardInstance.loadStats();
+          window.dashboardInstance.loadRecentActivity();
+        }
+      };
+
+      // Initialize dashboard
+      document.addEventListener('DOMContentLoaded', async () => {
+        try {
+          await waitForFirebaseInstance();
+          window.dashboardInstance = new Dashboard();
+        } catch (e) {
+          console.error(e);
+          alert('تعذّر تحميل لوحة التحكم. يرجى تحديث الصفحة.');
+        }
+      });
+
+      // Logout
+      function logout() {
+        if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
+          localStorage.removeItem('isLoggedIn');
+          localStorage.removeItem('username');
+          window.location.href = 'login.html';
+        }
+      }
     </script>
     
     <!-- Firebase SDK -->
