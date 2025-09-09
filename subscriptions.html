@@ -220,7 +220,6 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="database.js"></script>
     <script>
         // Check authentication
         if (localStorage.getItem('isLoggedIn') !== 'true') {
@@ -235,8 +234,8 @@
                 this.setupEventListeners();
             }
 
-            loadSubscriptions() {
-                const subscriptions = db.getSubscriptions();
+            async loadSubscriptions() {
+                const subscriptions = await window.firebaseDB_instance.getSubscriptions();
                 const tbody = document.getElementById('subscriptionsTableBody');
                 tbody.innerHTML = '';
 
@@ -245,9 +244,9 @@
                     return;
                 }
 
-                subscriptions.forEach(subscription => {
-                    const customer = db.getCustomerById(subscription.customerId);
-                    const packageData = db.getPackageById(subscription.packageId);
+                for (const subscription of subscriptions) {
+                    const customer = await window.firebaseDB_instance.getCustomerById(subscription.customerId);
+                    const packageData = await window.firebaseDB_instance.getPackageById(subscription.packageId);
                     
                     const row = document.createElement('tr');
                     row.innerHTML = `
@@ -259,18 +258,18 @@
                         <td>${subscription.remainingSnacks}</td>
                         <td><span class="badge ${this.getStatusBadgeClass(subscription.status)}">${subscription.status}</span></td>
                         <td>
-                            <button class="btn btn-sm btn-outline-primary me-1" onclick="editSubscription(${subscription.id})">تعديل</button>
-                            <button class="btn btn-sm btn-outline-danger" onclick="deleteSubscription(${subscription.id})">حذف</button>
+                            <button class="btn btn-sm btn-outline-primary me-1" onclick="editSubscription('${subscription.id}')">تعديل</button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteSubscription('${subscription.id}')">حذف</button>
                         </td>
                     `;
                     tbody.appendChild(row);
                 });
             }
 
-            loadCustomersAndPackages() {
+            async loadCustomersAndPackages() {
                 // Load customers
                 const customerSelect = document.getElementById('subscriptionCustomer');
-                const customers = db.getCustomers();
+                const customers = await window.firebaseDB_instance.getCustomers();
                 customerSelect.innerHTML = '<option value="">-- اختر العميل --</option>';
                 
                 customers.forEach(customer => {
@@ -282,7 +281,7 @@
 
                 // Load packages
                 const packageSelect = document.getElementById('subscriptionPackage');
-                const packages = db.getPackages();
+                const packages = await window.firebaseDB_instance.getPackages();
                 packageSelect.innerHTML = '<option value="">-- اختر الباقة --</option>';
                 
                 packages.forEach(packageData => {
@@ -323,9 +322,9 @@
         }
 
         // Global functions
-        function addSubscription() {
-            const customerId = parseInt(document.getElementById('subscriptionCustomer').value);
-            const packageId = parseInt(document.getElementById('subscriptionPackage').value);
+        async function addSubscription() {
+            const customerId = document.getElementById('subscriptionCustomer').value;
+            const packageId = document.getElementById('subscriptionPackage').value;
             const startDate = document.getElementById('startDate').value;
             const endDate = document.getElementById('endDate').value;
             const hasSnacks = document.getElementById('hasSnacks').checked;
@@ -346,25 +345,32 @@
             }
 
             // Check if customer already has active subscription
-            const existingSubscription = db.getSubscriptionByCustomerId(customerId);
+            const existingSubscription = await window.firebaseDB_instance.getActiveSubscriptionByCustomerId(customerId);
             if (existingSubscription) {
                 alert('العميل لديه اشتراك نشط بالفعل');
                 return;
             }
 
-            const subscription = db.addSubscription({
+            // Get package data to calculate remaining meals/snacks
+            const packageData = await window.firebaseDB_instance.getPackageById(packageId);
+            const remainingMeals = packageData.meals;
+            const remainingSnacks = hasSnacks ? Math.round(packageData.meals / 2) : 0;
+
+            const subscription = await window.firebaseDB_instance.createSubscription({
                 customerId,
                 packageId,
                 startDate,
                 endDate,
-                hasSnacks
+                hasSnacks,
+                remainingMeals,
+                remainingSnacks,
+                status: 'نشط'
             });
 
             if (subscription) {
                 // Add activity
-                const customer = db.getCustomerById(customerId);
-                const packageData = db.getPackageById(packageId);
-                db.addActivity({
+                const customer = await window.firebaseDB_instance.getCustomerById(customerId);
+                await window.firebaseDB_instance.logActivity({
                     type: 'إضافة اشتراك',
                     customerId: customerId,
                     description: `تم إضافة اشتراك ${packageData.name} للعميل ${customer.name}`
@@ -379,12 +385,13 @@
             }
         }
 
-        function editSubscription(id) {
-            const subscription = db.getSubscriptions().find(s => s.id === id);
+        async function editSubscription(id) {
+            const subscriptions = await window.firebaseDB_instance.getSubscriptions();
+            const subscription = subscriptions.find(s => s.id === id);
             if (!subscription) return;
 
-            const customer = db.getCustomerById(subscription.customerId);
-            const packageData = db.getPackageById(subscription.packageId);
+            const customer = await window.firebaseDB_instance.getCustomerById(subscription.customerId);
+            const packageData = await window.firebaseDB_instance.getPackageById(subscription.packageId);
 
             document.getElementById('editSubscriptionId').value = id;
             document.getElementById('editSubscriptionCustomer').value = customer ? customer.name : 'عميل غير معروف';
@@ -396,8 +403,8 @@
             new bootstrap.Modal(document.getElementById('editSubscriptionModal')).show();
         }
 
-        function updateSubscription() {
-            const id = parseInt(document.getElementById('editSubscriptionId').value);
+        async function updateSubscription() {
+            const id = document.getElementById('editSubscriptionId').value;
             const startDate = document.getElementById('editStartDate').value;
             const endDate = document.getElementById('editEndDate').value;
             const hasSnacks = document.getElementById('editHasSnacks').checked;
@@ -407,43 +414,44 @@
                 return;
             }
 
-            const updatedSubscription = db.updateSubscription(id, {
+            await window.firebaseDB_instance.updateSubscription(id, {
                 startDate,
                 endDate,
                 hasSnacks
             });
 
-            if (updatedSubscription) {
-                // Add activity
-                const customer = db.getCustomerById(updatedSubscription.customerId);
-                db.addActivity({
-                    type: 'تعديل اشتراك',
-                    customerId: updatedSubscription.customerId,
-                    description: `تم تعديل اشتراك العميل ${customer.name}`
-                });
+            // Add activity
+            const subscriptions = await window.firebaseDB_instance.getSubscriptions();
+            const updatedSubscription = subscriptions.find(s => s.id === id);
+            const customer = await window.firebaseDB_instance.getCustomerById(updatedSubscription.customerId);
+            await window.firebaseDB_instance.logActivity({
+                type: 'تعديل اشتراك',
+                customerId: updatedSubscription.customerId,
+                description: `تم تعديل اشتراك العميل ${customer.name}`
+            });
 
-                // Close modal and refresh table
-                bootstrap.Modal.getInstance(document.getElementById('editSubscriptionModal')).hide();
-                subscriptionManager.loadSubscriptions();
-                
-                alert('تم تحديث الاشتراك بنجاح');
-            }
+            // Close modal and refresh table
+            bootstrap.Modal.getInstance(document.getElementById('editSubscriptionModal')).hide();
+            subscriptionManager.loadSubscriptions();
+            
+            alert('تم تحديث الاشتراك بنجاح');
         }
 
-        function deleteSubscription(id) {
-            const subscription = db.getSubscriptions().find(s => s.id === id);
+        async function deleteSubscription(id) {
+            const subscriptions = await window.firebaseDB_instance.getSubscriptions();
+            const subscription = subscriptions.find(s => s.id === id);
             if (!subscription) return;
 
-            const customer = db.getCustomerById(subscription.customerId);
+            const customer = await window.firebaseDB_instance.getCustomerById(subscription.customerId);
             if (confirm(`هل أنت متأكد من حذف اشتراك العميل ${customer ? customer.name : 'غير معروف'}؟`)) {
                 // Add activity
-                db.addActivity({
+                await window.firebaseDB_instance.logActivity({
                     type: 'حذف اشتراك',
                     customerId: subscription.customerId,
                     description: `تم حذف اشتراك العميل ${customer ? customer.name : 'غير معروف'}`
                 });
 
-                db.deleteSubscription(id);
+                await window.firebaseDB_instance.deleteSubscription(id);
                 subscriptionManager.loadSubscriptions();
                 alert('تم حذف الاشتراك بنجاح');
             }
@@ -467,6 +475,6 @@
     
     <!-- Firebase SDK -->
     <script type="module" src="firebase-config.js"></script>
-    <script src="online-database.js"></script>
+    <script type="module" src="online-database.js"></script>
 </body>
 </html>

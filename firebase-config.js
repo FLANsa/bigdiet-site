@@ -11,26 +11,5 @@ const firebaseConfig = {
     measurementId: "G-TTY4G06FL7"
 };
 
-// Initialize Firebase (Data Storage Only - No Authentication)
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-import { getFirestore, collection, doc, getDocs, addDoc, updateDoc, deleteDoc, onSnapshot, getDoc, setDoc, query, where, orderBy } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-
-// Export Firebase functions (Data Storage Only)
-window.firebaseDB = {
-    db,
-    collection,
-    doc,
-    getDocs,
-    getDoc,
-    setDoc,
-    addDoc,
-    updateDoc,
-    deleteDoc,
-    onSnapshot,
-    query,
-    where,
-    orderBy
-};
+// Expose config globally for other modules
+window.__FIREBASE_CONFIG__ = window.__FIREBASE_CONFIG__ || firebaseConfig;

@@ -193,7 +193,6 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="database.js"></script>
     <script>
         // Check authentication
         if (localStorage.getItem('isLoggedIn') !== 'true') {
@@ -207,13 +206,8 @@
             }
 
             async loadPackages() {
-                // Use Firebase if available, otherwise use localStorage
-                let packages;
-                if (window.firebaseDB_instance && window.firebaseDB_instance.isOnline) {
-                    packages = await window.firebaseDB_instance.getPackages();
-                } else {
-                    packages = db.getPackages();
-                }
+                // Use Firebase only
+                const packages = await window.firebaseDB_instance.getPackages();
                 const tbody = document.getElementById('packagesTableBody');
                 tbody.innerHTML = '';
 
@@ -232,8 +226,8 @@
                         <td>${packageData.description || '-'}</td>
                         <td><span class="badge ${this.getStatusBadgeClass(packageData.status)}">${packageData.status}</span></td>
                         <td>
-                            <button class="btn btn-sm btn-outline-primary me-1" onclick="editPackage(${packageData.id})">تعديل</button>
-                            <button class="btn btn-sm btn-outline-danger" onclick="deletePackage(${packageData.id})">حذف</button>
+                            <button class="btn btn-sm btn-outline-primary me-1" onclick="editPackage('${packageData.id}')">تعديل</button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deletePackage('${packageData.id}')">حذف</button>
                         </td>
                     `;
                     tbody.appendChild(row);
@@ -273,33 +267,24 @@
             }
 
             // Check if package name already exists
-            const existingPackage = db.getPackages().find(p => p.name === name);
+            const existingPackages = await window.firebaseDB_instance.getPackages();
+            const existingPackage = existingPackages.find(p => p.name === name);
             if (existingPackage) {
                 alert('اسم الباقة مسجل مسبقاً');
                 return;
             }
 
-            // Use Firebase if available, otherwise use localStorage
-            let packageData;
-            if (window.firebaseDB_instance && window.firebaseDB_instance.isOnline) {
-                packageData = await window.firebaseDB_instance.addPackage({
-                    name,
-                    price,
-                    meals,
-                    description
-                });
-            } else {
-                packageData = db.addPackage({
-                    name,
-                    price,
-                    meals,
-                    description
-                });
-            }
+            // Use Firebase only
+            const packageData = await window.firebaseDB_instance.addPackage({
+                name,
+                price,
+                meals,
+                description
+            });
 
             if (packageData) {
                 // Add activity
-                db.addActivity({
+                await window.firebaseDB_instance.logActivity({
                     type: 'إضافة باقة',
                     customerId: null,
                     description: `تم إضافة باقة ${name}`
@@ -314,8 +299,8 @@
             }
         }
 
-        function editPackage(id) {
-            const packageData = db.getPackages().find(p => p.id === id);
+        async function editPackage(id) {
+            const packageData = await window.firebaseDB_instance.getPackageById(id);
             if (!packageData) return;
 
             document.getElementById('editPackageId').value = id;
@@ -328,8 +313,8 @@
             new bootstrap.Modal(document.getElementById('editPackageModal')).show();
         }
 
-        function updatePackage() {
-            const id = parseInt(document.getElementById('editPackageId').value);
+        async function updatePackage() {
+            const id = document.getElementById('editPackageId').value;
             const name = document.getElementById('editPackageName').value.trim();
             const price = parseFloat(document.getElementById('editPackagePrice').value);
             const meals = parseInt(document.getElementById('editPackageMeals').value);
@@ -352,13 +337,14 @@
             }
 
             // Check if package name already exists for other packages
-            const existingPackage = db.getPackages().find(p => p.name === name && p.id !== id);
+            const existingPackages = await window.firebaseDB_instance.getPackages();
+            const existingPackage = existingPackages.find(p => p.name === name && p.id !== id);
             if (existingPackage) {
                 alert('اسم الباقة مسجل مسبقاً');
                 return;
             }
 
-            const updatedPackage = db.updatePackage(id, {
+            await window.firebaseDB_instance.updatePackage(id, {
                 name,
                 price,
                 meals,
@@ -366,13 +352,12 @@
                 status
             });
 
-            if (updatedPackage) {
-                // Add activity
-                db.addActivity({
-                    type: 'تعديل باقة',
-                    customerId: null,
-                    description: `تم تعديل باقة ${name}`
-                });
+            // Add activity
+            await window.firebaseDB_instance.logActivity({
+                type: 'تعديل باقة',
+                customerId: null,
+                description: `تم تعديل باقة ${name}`
+            });
 
                 // Close modal and refresh table
                 bootstrap.Modal.getInstance(document.getElementById('editPackageModal')).hide();
@@ -382,12 +367,13 @@
             }
         }
 
-        function deletePackage(id) {
-            const packageData = db.getPackages().find(p => p.id === id);
+        async function deletePackage(id) {
+            const packageData = await window.firebaseDB_instance.getPackageById(id);
             if (!packageData) return;
 
             // Check if package is used in any subscription
-            const usedInSubscription = db.getSubscriptions().some(s => s.packageId === id);
+            const subscriptions = await window.firebaseDB_instance.getSubscriptions();
+            const usedInSubscription = subscriptions.some(s => s.packageId === id);
             if (usedInSubscription) {
                 alert('لا يمكن حذف الباقة لأنها مستخدمة في اشتراكات');
                 return;
@@ -395,13 +381,13 @@
 
             if (confirm(`هل أنت متأكد من حذف الباقة ${packageData.name}؟`)) {
                 // Add activity
-                db.addActivity({
+                await window.firebaseDB_instance.logActivity({
                     type: 'حذف باقة',
                     customerId: null,
                     description: `تم حذف باقة ${packageData.name}`
                 });
 
-                db.deletePackage(id);
+                await window.firebaseDB_instance.deletePackage(id);
                 packageManager.loadPackages();
                 alert('تم حذف الباقة بنجاح');
             }
@@ -425,6 +411,6 @@
     
     <!-- Firebase SDK -->
     <script type="module" src="firebase-config.js"></script>
-    <script src="online-database.js"></script>
+    <script type="module" src="online-database.js"></script>
 </body>
 </html>

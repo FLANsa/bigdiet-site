@@ -170,7 +170,6 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="database.js"></script>
     <script>
         // Check authentication
         if (localStorage.getItem('isLoggedIn') !== 'true') {
@@ -185,13 +184,8 @@
             }
 
             async loadCustomers() {
-                // Use Firebase if available, otherwise use localStorage
-                let customers;
-                if (window.firebaseDB_instance && window.firebaseDB_instance.isOnline) {
-                    customers = await window.firebaseDB_instance.getCustomers();
-                } else {
-                    customers = db.getCustomers();
-                }
+                // Use Firebase only
+                const customers = await window.firebaseDB_instance.getCustomers();
                 const tbody = document.getElementById('customersTableBody');
                 tbody.innerHTML = '';
 
@@ -200,9 +194,9 @@
                     return;
                 }
 
-                customers.forEach(customer => {
-                    const subscription = db.getSubscriptionByCustomerId(customer.id);
-                    const currentPackage = subscription ? db.getPackageById(subscription.packageId)?.name : 'لا يوجد اشتراك';
+                for (const customer of customers) {
+                    const subscription = await window.firebaseDB_instance.getActiveSubscriptionByCustomerId(customer.id);
+                    const currentPackage = subscription ? (await window.firebaseDB_instance.getPackageById(subscription.packageId))?.name : 'لا يوجد اشتراك';
                     
                     const row = document.createElement('tr');
                     row.innerHTML = `
@@ -213,12 +207,12 @@
                         <td>${currentPackage}</td>
                         <td><span class="badge ${this.getStatusBadgeClass(customer.status)}">${customer.status}</span></td>
                         <td>
-                            <button class="btn btn-sm btn-outline-primary me-1" onclick="editCustomer(${customer.id})">تعديل</button>
-                            <button class="btn btn-sm btn-outline-danger" onclick="deleteCustomer(${customer.id})">حذف</button>
+                            <button class="btn btn-sm btn-outline-primary me-1" onclick="editCustomer('${customer.id}')">تعديل</button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteCustomer('${customer.id}')">حذف</button>
                         </td>
                     `;
                     tbody.appendChild(row);
-                });
+                }
             }
 
             getStatusBadgeClass(status) {
@@ -252,33 +246,23 @@
                 return;
             }
 
-            if (!db.validatePhoneNumber(phone)) {
+            if (!window.firebaseDB_instance.validatePhoneNumber(phone)) {
                 alert('رقم الهاتف يجب أن يكون 10 أرقام فقط');
                 return;
             }
 
             // Check if phone already exists
-            let existingCustomer;
-            if (window.firebaseDB_instance && window.firebaseDB_instance.isOnline) {
-                existingCustomer = await window.firebaseDB_instance.getCustomerByPhone(phone);
-            } else {
-                existingCustomer = db.getCustomers().find(c => c.phone === phone);
-            }
+            const existingCustomer = await window.firebaseDB_instance.getCustomerByPhone(phone);
             if (existingCustomer) {
                 alert('رقم الهاتف مسجل مسبقاً');
                 return;
             }
 
-            // Use Firebase if available, otherwise use localStorage
-            let customer;
-            if (window.firebaseDB_instance && window.firebaseDB_instance.isOnline) {
-                customer = await window.firebaseDB_instance.addCustomer({ name, phone });
-            } else {
-                customer = db.addCustomer({ name, phone });
-            }
+            // Use Firebase only
+            const customer = await window.firebaseDB_instance.addCustomer({ name, phone });
             
             // Add activity
-            db.addActivity({
+            await window.firebaseDB_instance.logActivity({
                 type: 'إضافة عميل',
                 customerId: customer.id,
                 description: `تم إضافة العميل ${name}`
@@ -292,8 +276,8 @@
             alert('تم إضافة العميل بنجاح');
         }
 
-        function editCustomer(id) {
-            const customer = db.getCustomerById(id);
+        async function editCustomer(id) {
+            const customer = await window.firebaseDB_instance.getCustomerById(id);
             if (!customer) return;
 
             document.getElementById('editCustomerId').value = id;
@@ -303,8 +287,8 @@
             new bootstrap.Modal(document.getElementById('editCustomerModal')).show();
         }
 
-        function updateCustomer() {
-            const id = parseInt(document.getElementById('editCustomerId').value);
+        async function updateCustomer() {
+            const id = document.getElementById('editCustomerId').value;
             const name = document.getElementById('editCustomerName').value.trim();
             const phone = document.getElementById('editCustomerPhone').value.trim();
 
@@ -313,49 +297,48 @@
                 return;
             }
 
-            if (!db.validatePhoneNumber(phone)) {
+            if (!window.firebaseDB_instance.validatePhoneNumber(phone)) {
                 alert('رقم الهاتف يجب أن يكون 10 أرقام فقط');
                 return;
             }
 
             // Check if phone already exists for other customers
-            const existingCustomer = db.getCustomers().find(c => c.phone === phone && c.id !== id);
+            const customers = await window.firebaseDB_instance.getCustomers();
+            const existingCustomer = customers.find(c => c.phone === phone && c.id !== id);
             if (existingCustomer) {
                 alert('رقم الهاتف مسجل مسبقاً');
                 return;
             }
 
-            const updatedCustomer = db.updateCustomer(id, { name, phone });
+            await window.firebaseDB_instance.updateCustomer(id, { name, phone });
             
-            if (updatedCustomer) {
-                // Add activity
-                db.addActivity({
-                    type: 'تعديل عميل',
-                    customerId: id,
-                    description: `تم تعديل بيانات العميل ${name}`
-                });
+            // Add activity
+            await window.firebaseDB_instance.logActivity({
+                type: 'تعديل عميل',
+                customerId: id,
+                description: `تم تعديل بيانات العميل ${name}`
+            });
 
-                // Close modal and refresh table
-                bootstrap.Modal.getInstance(document.getElementById('editCustomerModal')).hide();
-                customerManager.loadCustomers();
-                
-                alert('تم تحديث بيانات العميل بنجاح');
-            }
+            // Close modal and refresh table
+            bootstrap.Modal.getInstance(document.getElementById('editCustomerModal')).hide();
+            customerManager.loadCustomers();
+            
+            alert('تم تحديث بيانات العميل بنجاح');
         }
 
-        function deleteCustomer(id) {
-            const customer = db.getCustomerById(id);
+        async function deleteCustomer(id) {
+            const customer = await window.firebaseDB_instance.getCustomerById(id);
             if (!customer) return;
 
             if (confirm(`هل أنت متأكد من حذف العميل ${customer.name}؟`)) {
                 // Add activity
-                db.addActivity({
+                await window.firebaseDB_instance.logActivity({
                     type: 'حذف عميل',
                     customerId: id,
                     description: `تم حذف العميل ${customer.name}`
                 });
 
-                db.deleteCustomer(id);
+                await window.firebaseDB_instance.deleteCustomer(id);
                 customerManager.loadCustomers();
                 alert('تم حذف العميل بنجاح');
             }
@@ -379,7 +362,7 @@
     
     <!-- Firebase SDK -->
     <script type="module" src="firebase-config.js"></script>
-    <script src="online-database.js"></script>
+    <script type="module" src="online-database.js"></script>
 </body>
 </html>
 

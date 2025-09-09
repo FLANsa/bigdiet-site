@@ -173,7 +173,6 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="database.js"></script>
     <script>
         // Check authentication
         if (localStorage.getItem('isLoggedIn') !== 'true') {
@@ -220,17 +219,12 @@
                     return;
                 }
 
-                let customers;
-                if (window.firebaseDB_instance && window.firebaseDB_instance.isOnline) {
-                    // For Firebase, we'll search by phone number or name
-                    const allCustomers = await window.firebaseDB_instance.getCustomers();
-                    customers = allCustomers.filter(c => 
-                        c.name.toLowerCase().includes(query.toLowerCase()) ||
-                        c.phone.includes(query)
-                    );
-                } else {
-                    customers = db.searchCustomers(query);
-                }
+                // Use Firebase only - search by phone number or name
+                const allCustomers = await window.firebaseDB_instance.getCustomers();
+                const customers = allCustomers.filter(c => 
+                    c.name.toLowerCase().includes(query.toLowerCase()) ||
+                    c.phone.includes(query)
+                );
                 
                 searchResults.innerHTML = '';
 
@@ -257,13 +251,8 @@
             async selectCustomer(customer) {
                 this.selectedCustomer = customer;
                 
-                // Get subscription - use Firebase if available
-                let subscription;
-                if (window.firebaseDB_instance && window.firebaseDB_instance.isOnline) {
-                    subscription = await window.firebaseDB_instance.getActiveSubscriptionByCustomerId(customer.id);
-                } else {
-                    subscription = db.getSubscriptionByCustomerId(customer.id);
-                }
+                // Get subscription from Firebase
+                const subscription = await window.firebaseDB_instance.getActiveSubscriptionByCustomerId(customer.id);
                 
                 // Show customer info
                 document.getElementById('selectedCustomerName').textContent = customer.name;
@@ -331,13 +320,8 @@
                     return;
                 }
 
-                // Get subscription - use Firebase if available
-                let subscription;
-                if (window.firebaseDB_instance && window.firebaseDB_instance.isOnline) {
-                    subscription = await window.firebaseDB_instance.getActiveSubscriptionByCustomerId(this.selectedCustomer.id);
-                } else {
-                    subscription = db.getSubscriptionByCustomerId(this.selectedCustomer.id);
-                }
+                // Get subscription from Firebase
+                const subscription = await window.firebaseDB_instance.getActiveSubscriptionByCustomerId(this.selectedCustomer.id);
 
                 if (!subscription) {
                     alert('العميل لا يملك اشتراك نشط');
@@ -354,21 +338,12 @@
                     return;
                 }
 
-                // Add registration - use Firebase if available
-                let registration;
-                if (window.firebaseDB_instance && window.firebaseDB_instance.isOnline) {
-                    registration = await window.firebaseDB_instance.addDailyRegistration({
-                        customerId: this.selectedCustomer.id,
-                        meals: meals,
-                        snacks: snacks
-                    });
-                } else {
-                    registration = db.addDailyRegistration({
-                        customerId: this.selectedCustomer.id,
-                        meals: meals,
-                        snacks: snacks
-                    });
-                }
+                // Add registration to Firebase
+                const registration = await window.firebaseDB_instance.addDailyRegistration({
+                    customerId: this.selectedCustomer.id,
+                    meals: meals,
+                    snacks: snacks
+                });
 
                 if (registration) {
                     alert('تم تسجيل الحضور بنجاح');
@@ -387,16 +362,12 @@
             }
 
             async loadRecentVisits(customerId) {
-                let recentVisits;
-                if (window.firebaseDB_instance && window.firebaseDB_instance.isOnline) {
-                    const allRegistrations = await window.firebaseDB_instance.getDailyRegistrations();
-                    recentVisits = allRegistrations
-                        .filter(reg => reg.customerId === customerId)
-                        .sort((a, b) => new Date(b.date + ' ' + b.time) - new Date(a.date + ' ' + a.time))
-                        .slice(0, 5);
-                } else {
-                    recentVisits = db.getCustomerRegistrations(customerId, 5);
-                }
+                // Use Firebase only
+                const allRegistrations = await window.firebaseDB_instance.getDailyRegistrations();
+                const recentVisits = allRegistrations
+                    .filter(reg => reg.customerId === customerId)
+                    .sort((a, b) => new Date(b.date + ' ' + b.time) - new Date(a.date + ' ' + a.time))
+                    .slice(0, 5);
                 
                 const recentVisitsContainer = document.getElementById('recentVisitsList');
                 const recentVisitsSection = document.getElementById('recentVisitsSection');
@@ -428,12 +399,8 @@
             }
 
             async loadTodayRegistrations() {
-                let registrations;
-                if (window.firebaseDB_instance && window.firebaseDB_instance.isOnline) {
-                    registrations = await window.firebaseDB_instance.getTodayRegistrations();
-                } else {
-                    registrations = db.getTodayRegistrations();
-                }
+                // Use Firebase only
+                const registrations = await window.firebaseDB_instance.getTodayRegistrations();
                 
                 const tbody = document.getElementById('todayRegistrationsTableBody');
                 tbody.innerHTML = '';
@@ -444,13 +411,9 @@
                 }
 
                 for (const registration of registrations) {
-                    let customer;
-                    if (window.firebaseDB_instance && window.firebaseDB_instance.isOnline) {
-                        const allCustomers = await window.firebaseDB_instance.getCustomers();
-                        customer = allCustomers.find(c => c.id === registration.customerId);
-                    } else {
-                        customer = db.getCustomerById(registration.customerId);
-                    }
+                    // Get customer from Firebase
+                    const allCustomers = await window.firebaseDB_instance.getCustomers();
+                    const customer = allCustomers.find(c => c.id === registration.customerId);
                     
                     const registrationType = this.getRegistrationType(registration);
                     const quantity = this.getRegistrationQuantity(registration);
@@ -559,7 +522,7 @@
     
     <!-- Firebase SDK -->
     <script type="module" src="firebase-config.js"></script>
-    <script src="online-database.js"></script>
+    <script type="module" src="online-database.js"></script>
 </body>
 </html>
 
