@@ -174,350 +174,354 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Check authentication
-        if (localStorage.getItem('isLoggedIn') !== 'true') {
-            window.location.href = 'login.html';
+      // Auth gate
+      if (localStorage.getItem('isLoggedIn') !== 'true') {
+        window.location.href = 'login.html';
+      }
+
+      // -------- Helpers --------
+      const RIYADH_TZ = 'Asia/Riyadh';
+
+      // Normalize Arabic-Indic digits and strip non-digits for phone comparisons
+      function normalizeDigits(input) {
+        if (!input) return '';
+        const map = {'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9'};
+        return input.replace(/[٠-٩]/g, ch => map[ch] || ch);
+      }
+      function normalizePhone(input) {
+        return normalizeDigits(input).replace(/\D/g, '').slice(0, 10);
+      }
+
+      // Riyadh "now" and HH:MM
+      function nowInRiyadh() {
+        return new Date(new Date().toLocaleString('en-US', { timeZone: RIYADH_TZ }));
+      }
+      function timeHMInRiyadh() {
+        const d = nowInRiyadh();
+        const hh = String(d.getHours()).padStart(2, '0');
+        const mm = String(d.getMinutes()).padStart(2, '0');
+        return `${hh}:${mm}`;
+      }
+
+      // Wait for firebase layer (module scripts load async)
+      async function waitForFirebaseInstance(timeout = 8000) {
+        const start = Date.now();
+        while (!window.firebaseDB_instance) {
+          if (Date.now() - start > timeout) throw new Error('Firebase not ready');
+          await new Promise(r => setTimeout(r, 30));
+        }
+        return window.firebaseDB_instance;
+      }
+
+      // -------- Daily Registration Manager --------
+      class DailyRegistrationManager {
+        constructor() {
+          this.selectedCustomer = null;
+          this.$search = document.getElementById('customerSearch');
+          this.$results = document.getElementById('searchResults');
+          this.$selectedInfo = document.getElementById('selectedCustomerInfo');
+          this.$selectedName = document.getElementById('selectedCustomerName');
+          this.$remainMeals = document.getElementById('remainingMeals');
+          this.$remainSnacks = document.getElementById('remainingSnacks');
+          this.$mealSelect = document.getElementById('mealType');
+          this.$snackSelect = document.getElementById('snackType');
+          this.$time = document.getElementById('registrationTime');
+          this.$todayTbody = document.getElementById('todayRegistrationsTableBody');
+          this.$recentSection = document.getElementById('recentVisitsSection');
+          this.$recentList = document.getElementById('recentVisitsList');
+
+          this.init();
         }
 
-        // Daily Registration Management
-        class DailyRegistrationManager {
-            constructor() {
-                this.selectedCustomer = null;
-                this.init();
-            }
-
-            init() {
-                this.setCurrentTime();
-                this.loadTodayRegistrations();
-                this.setupEventListeners();
-            }
-
-            setCurrentTime() {
-                const now = new Date();
-                const timeString = now.toTimeString().slice(0, 5);
-                document.getElementById('registrationTime').value = timeString;
-            }
-
-            setupEventListeners() {
-                // Customer search
-                document.getElementById('customerSearch').addEventListener('input', async (e) => {
-                    await this.searchCustomers(e.target.value);
-                });
-
-                // Form submission
-                document.getElementById('registrationForm').addEventListener('submit', async (e) => {
-                    e.preventDefault();
-                    await this.submitRegistration();
-                });
-            }
-
-            async searchCustomers(query) {
-                const searchResults = document.getElementById('searchResults');
-                
-                if (query.length < 2) {
-                    searchResults.innerHTML = '';
-                    return;
-                }
-
-                // Use Firebase only - search by phone number or name
-                const allCustomers = await window.firebaseDB_instance.getCustomers();
-                const customers = allCustomers.filter(c => 
-                    c.name.toLowerCase().includes(query.toLowerCase()) ||
-                    c.phone.includes(query)
-                );
-                
-                searchResults.innerHTML = '';
-
-                if (customers.length === 0) {
-                    searchResults.innerHTML = '<div class="text-muted">لا يوجد عملاء</div>';
-                    return;
-                }
-
-                customers.forEach(customer => {
-                    const div = document.createElement('div');
-                    div.className = 'border rounded p-2 mb-1 cursor-pointer';
-                    div.style.cursor = 'pointer';
-                    div.innerHTML = `
-                        <strong>${customer.name}</strong><br>
-                        <small class="text-muted">${customer.phone}</small>
-                    `;
-                    div.addEventListener('click', () => {
-                        this.selectCustomer(customer);
-                    });
-                    searchResults.appendChild(div);
-                });
-            }
-
-            async selectCustomer(customer) {
-                this.selectedCustomer = customer;
-                
-                // Get subscription from Firebase
-                const subscription = await window.firebaseDB_instance.getActiveSubscriptionByCustomerId(customer.id);
-                
-                // Show customer info
-                document.getElementById('selectedCustomerName').textContent = customer.name;
-                document.getElementById('remainingMeals').textContent = subscription ? subscription.remainingMeals : 0;
-                document.getElementById('remainingSnacks').textContent = subscription ? subscription.remainingSnacks : 0;
-                document.getElementById('selectedCustomerInfo').style.display = 'block';
-                
-                // Clear search
-                document.getElementById('customerSearch').value = '';
-                document.getElementById('searchResults').innerHTML = '';
-
-                // Update meal and snack dropdowns
-                this.updateMealSnackDropdowns(subscription);
-
-                // Load and show recent visits
-                await this.loadRecentVisits(customer.id);
-            }
-
-            updateMealSnackDropdowns(subscription) {
-                const mealSelect = document.getElementById('mealType');
-                const snackSelect = document.getElementById('snackType');
-                
-                // Clear existing options
-                mealSelect.innerHTML = '<option value="">-- اختر عدد الوجبات --</option>';
-                snackSelect.innerHTML = '<option value="">-- اختر عدد السناكس --</option>';
-
-                if (!subscription) {
-                    mealSelect.innerHTML += '<option value="0" disabled>لا يوجد اشتراك نشط</option>';
-                    snackSelect.innerHTML += '<option value="0" disabled>لا يوجد اشتراك نشط</option>';
-                    return;
-                }
-
-                // Add meal options (1 to remaining meals)
-                for (let i = 1; i <= subscription.remainingMeals; i++) {
-                    const option = document.createElement('option');
-                    option.value = i;
-                    if (i === 1) option.textContent = 'وجبة واحدة';
-                    else if (i === 2) option.textContent = 'وجبتين';
-                    else option.textContent = `${i} وجبات`;
-                    mealSelect.appendChild(option);
-                }
-
-                // Add snack options (1 to remaining snacks)
-                for (let i = 1; i <= subscription.remainingSnacks; i++) {
-                    const option = document.createElement('option');
-                    option.value = i;
-                    if (i === 1) option.textContent = 'سناك واحد';
-                    else if (i === 2) option.textContent = 'سناكين';
-                    else option.textContent = `${i} سناكس`;
-                    snackSelect.appendChild(option);
-                }
-            }
-
-            async submitRegistration() {
-                if (!this.selectedCustomer) {
-                    alert('يرجى اختيار العميل أولاً');
-                    return;
-                }
-
-                const meals = parseInt(document.getElementById('mealType').value) || 0;
-                const snacks = parseInt(document.getElementById('snackType').value) || 0;
-
-                if (meals === 0 && snacks === 0) {
-                    alert('يرجى اختيار وجبة أو سناك واحد على الأقل');
-                    return;
-                }
-
-                // Get subscription from Firebase
-                const subscription = await window.firebaseDB_instance.getActiveSubscriptionByCustomerId(this.selectedCustomer.id);
-
-                if (!subscription) {
-                    alert('العميل لا يملك اشتراك نشط');
-                    return;
-                }
-
-                if (meals > subscription.remainingMeals) {
-                    alert('عدد الوجبات المطلوبة أكبر من المتبقي');
-                    return;
-                }
-
-                if (snacks > subscription.remainingSnacks) {
-                    alert('عدد السناكس المطلوبة أكبر من المتبقي');
-                    return;
-                }
-
-                // Add registration to Firebase
-                const registration = await window.firebaseDB_instance.addDailyRegistration({
-                    customerId: this.selectedCustomer.id,
-                    meals: meals,
-                    snacks: snacks
-                });
-
-                if (registration) {
-                    alert('تم تسجيل الحضور بنجاح');
-                    this.resetForm();
-                    await this.loadTodayRegistrations();
-                }
-            }
-
-            resetForm() {
-                this.selectedCustomer = null;
-                document.getElementById('registrationForm').reset();
-                document.getElementById('selectedCustomerInfo').style.display = 'none';
-                document.getElementById('recentVisitsSection').style.display = 'none';
-                document.getElementById('searchResults').innerHTML = '';
-                this.setCurrentTime();
-            }
-
-            async loadRecentVisits(customerId) {
-                // Use Firebase only
-                const allRegistrations = await window.firebaseDB_instance.getDailyRegistrations();
-                const recentVisits = allRegistrations
-                    .filter(reg => reg.customerId === customerId)
-                    .sort((a, b) => new Date(b.date + ' ' + b.time) - new Date(a.date + ' ' + a.time))
-                    .slice(0, 5);
-                
-                const recentVisitsContainer = document.getElementById('recentVisitsList');
-                const recentVisitsSection = document.getElementById('recentVisitsSection');
-                
-                if (recentVisits.length === 0) {
-                    recentVisitsContainer.innerHTML = '<p class="text-muted text-center">لا توجد زيارات سابقة</p>';
-                } else {
-                    recentVisitsContainer.innerHTML = '';
-                    recentVisits.forEach(visit => {
-                        const visitDiv = document.createElement('div');
-                        visitDiv.className = 'd-flex justify-content-between align-items-center mb-2 p-2 border rounded';
-                        
-                        const description = this.formatRegistrationDescription(visit);
-                        visitDiv.innerHTML = `
-                            <div>
-                                <strong>${visit.date}</strong><br>
-                                <small class="text-muted">${description}</small>
-                            </div>
-                            <div>
-                                <span class="badge bg-primary">${visit.time}</span>
-                            </div>
-                        `;
-                        recentVisitsContainer.appendChild(visitDiv);
-                    });
-                }
-
-                // Show recent visits section
-                recentVisitsSection.style.display = 'block';
-            }
-
-            async loadTodayRegistrations() {
-                // Use Firebase only
-                const registrations = await window.firebaseDB_instance.getTodayRegistrations();
-                
-                const tbody = document.getElementById('todayRegistrationsTableBody');
-                tbody.innerHTML = '';
-
-                if (registrations.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6" class="text-center">لا توجد تسجيلات اليوم</td></tr>';
-                    return;
-                }
-
-                for (const registration of registrations) {
-                    // Get customer from Firebase
-                    const allCustomers = await window.firebaseDB_instance.getCustomers();
-                    const customer = allCustomers.find(c => c.id === registration.customerId);
-                    
-                    const registrationType = this.getRegistrationType(registration);
-                    const quantity = this.getRegistrationQuantity(registration);
-                    
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${registration.time}</td>
-                        <td>${customer ? customer.name : 'عميل غير معروف'}</td>
-                        <td>${registrationType}</td>
-                        <td>${quantity}</td>
-                        <td><span class="badge bg-success">مكتمل</span></td>
-                        <td>
-                            <button class="btn btn-sm btn-outline-danger" onclick="deleteRegistration(${registration.id})">حذف</button>
-                        </td>
-                    `;
-                    tbody.appendChild(row);
-                }
-            }
-
-            getRegistrationType(registration) {
-                if (registration.meals > 0 && registration.snacks > 0) {
-                    return 'وجبات وسناكس';
-                } else if (registration.meals > 0) {
-                    return 'وجبات';
-                } else if (registration.snacks > 0) {
-                    return 'سناكس';
-                }
-                return 'غير محدد';
-            }
-
-            getRegistrationQuantity(registration) {
-                let quantity = '';
-                if (registration.meals > 0) {
-                    if (registration.meals === 1) quantity += 'وجبة واحدة';
-                    else if (registration.meals === 2) quantity += 'وجبتين';
-                    else quantity += `${registration.meals} وجبات`;
-                }
-                
-                if (registration.snacks > 0) {
-                    if (quantity) quantity += ' + ';
-                    if (registration.snacks === 1) quantity += 'سناك واحد';
-                    else if (registration.snacks === 2) quantity += 'سناكين';
-                    else quantity += `${registration.snacks} سناكس`;
-                }
-
-                return quantity || 'غير محدد';
-            }
-
-            formatRegistrationDescription(registration) {
-                return this.getRegistrationQuantity(registration);
-            }
+        async init() {
+          await waitForFirebaseInstance();
+          this.setCurrentTimeRiyadh();
+          this.setupEventListeners();
+          this.loadTodayRegistrations();
         }
 
-        // Global functions
-        function deleteRegistration(id) {
-            if (confirm('هل أنت متأكد من حذف هذا التسجيل؟')) {
-                // Find and remove registration
-                const data = db.getData();
-                const registration = data.dailyRegistrations.find(r => r.id === id);
-                
-                if (registration) {
-                    // Restore meals/snacks to subscription
-                    const subscription = data.subscriptions.find(s => 
-                        s.customerId === registration.customerId && s.status === 'نشط'
-                    );
-                    
-                    if (subscription) {
-                        subscription.remainingMeals += registration.meals;
-                        subscription.remainingSnacks += registration.snacks;
-                    }
-
-                    // Remove registration
-                    data.dailyRegistrations = data.dailyRegistrations.filter(r => r.id !== id);
-                    db.saveData(data);
-
-                    // Add activity
-                    const customer = db.getCustomerById(registration.customerId);
-                    db.addActivity({
-                        type: 'حذف تسجيل',
-                        customerId: registration.customerId,
-                        description: `تم حذف تسجيل العميل ${customer ? customer.name : 'غير معروف'}`
-                    });
-
-                    // Refresh table
-                    dailyRegistrationManager.loadTodayRegistrations();
-                    alert('تم حذف التسجيل بنجاح');
-                }
-            }
+        setCurrentTimeRiyadh() {
+          this.$time.value = timeHMInRiyadh();
         }
 
-        // Initialize daily registration manager
-        let dailyRegistrationManager;
-        document.addEventListener('DOMContentLoaded', function() {
-            dailyRegistrationManager = new DailyRegistrationManager();
-        });
+        setupEventListeners() {
+          // Normalize query as user types (Arabic-Indic digits supported)
+          this.$search.addEventListener('input', async (e) => {
+            await this.searchCustomers(e.target.value);
+          });
 
-        // Logout function
-        function logout() {
-            if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
-                localStorage.removeItem('isLoggedIn');
-                localStorage.removeItem('username');
-                window.location.href = 'login.html';
-            }
+          // Form submission
+          document.getElementById('registrationForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await this.submitRegistration();
+          });
         }
+
+        async searchCustomers(queryRaw) {
+          const query = (queryRaw || '').trim();
+          this.$results.innerHTML = '';
+
+          if (query.length < 2) return;
+
+          const F = window.firebaseDB_instance;
+          const allCustomers = await F.getCustomers();
+
+          // Prepare both name and phone matching; phone supports Arabic-Indic digits
+          const phoneQuery = normalizePhone(query);
+          const lowerQuery = query.toLowerCase();
+
+          const filtered = allCustomers.filter(c => {
+            const nameOK = (c.name || '').toLowerCase().includes(lowerQuery);
+            const phoneOK = phoneQuery && (normalizePhone(c.phone || '').includes(phoneQuery));
+            return nameOK || phoneOK;
+          });
+
+          if (!filtered.length) {
+            this.$results.innerHTML = '<div class="text-muted">لا يوجد عملاء</div>';
+            return;
+          }
+
+          filtered.slice(0, 20).forEach(customer => {
+            const div = document.createElement('div');
+            div.className = 'border rounded p-2 mb-1';
+            div.style.cursor = 'pointer';
+            div.innerHTML = `
+              <strong>${customer.name || '-'}</strong><br>
+              <small class="text-muted" dir="ltr">${customer.phone || '-'}</small>
+            `;
+            div.addEventListener('click', () => this.selectCustomer(customer));
+            this.$results.appendChild(div);
+          });
+        }
+
+        async selectCustomer(customer) {
+          const F = window.firebaseDB_instance;
+          this.selectedCustomer = customer;
+
+          const sub = await F.getActiveSubscriptionByCustomerId(customer.id);
+
+          // Show info
+          this.$selectedName.textContent = customer.name || '-';
+          this.$remainMeals.textContent = sub ? (sub.remainingMeals || 0) : 0;
+          this.$remainSnacks.textContent = sub ? (sub.remainingSnacks || 0) : 0;
+          this.$selectedInfo.style.display = 'block';
+
+          // Clear search UI
+          this.$search.value = '';
+          this.$results.innerHTML = '';
+
+          // Populate dropdowns
+          this.updateMealSnackDropdowns(sub);
+
+          // Recent visits (limit 5)
+          await this.loadRecentVisits(customer.id);
+        }
+
+        updateMealSnackDropdowns(subscription) {
+          // Reset
+          this.$mealSelect.innerHTML = '<option value="">-- اختر عدد الوجبات --</option>';
+          this.$snackSelect.innerHTML = '<option value="">-- اختر عدد السناكس --</option>';
+
+          if (!subscription) {
+            this.$mealSelect.innerHTML += '<option value="0" disabled>لا يوجد اشتراك نشط</option>';
+            this.$snackSelect.innerHTML += '<option value="0" disabled>لا يوجد اشتراك نشط</option>';
+            return;
+          }
+
+          const remMeals = Number(subscription.remainingMeals || 0);
+          const remSnacks = Number(subscription.remainingSnacks || 0);
+
+          for (let i = 1; i <= remMeals; i++) {
+            const opt = document.createElement('option');
+            opt.value = i;
+            opt.textContent = i === 1 ? 'وجبة واحدة' : (i === 2 ? 'وجبتين' : `${i} وجبات`);
+            this.$mealSelect.appendChild(opt);
+          }
+
+          for (let i = 1; i <= remSnacks; i++) {
+            const opt = document.createElement('option');
+            opt.value = i;
+            opt.textContent = i === 1 ? 'سناك واحد' : (i === 2 ? 'سناكين' : `${i} سناكس`);
+            this.$snackSelect.appendChild(opt);
+          }
+        }
+
+        async submitRegistration() {
+          const F = window.firebaseDB_instance;
+
+          if (!this.selectedCustomer) {
+            alert('يرجى اختيار العميل أولاً');
+            return;
+          }
+
+          const meals = parseInt(this.$mealSelect.value) || 0;
+          const snacks = parseInt(this.$snackSelect.value) || 0;
+
+          if (meals === 0 && snacks === 0) {
+            alert('يرجى اختيار وجبة أو سناك واحد على الأقل');
+            return;
+          }
+
+          const sub = await F.getActiveSubscriptionByCustomerId(this.selectedCustomer.id);
+          if (!sub) { alert('العميل لا يملك اشتراك نشط'); return; }
+
+          if (meals > (sub.remainingMeals || 0))   { alert('عدد الوجبات المطلوبة أكبر من المتبقي'); return; }
+          if (snacks > (sub.remainingSnacks || 0)) { alert('عدد السناكس المطلوبة أكبر من المتبقي'); return; }
+
+          try {
+            await F.addDailyRegistration({
+              customerId: this.selectedCustomer.id,
+              meals,
+              snacks
+            });
+            alert('تم تسجيل الحضور بنجاح');
+            this.resetForm();
+            await this.loadTodayRegistrations();
+          } catch (e) {
+            console.error(e);
+            alert('تعذّر حفظ التسجيل. حاول مجددًا.');
+          }
+        }
+
+        resetForm() {
+          this.selectedCustomer = null;
+          document.getElementById('registrationForm').reset();
+          this.$selectedInfo.style.display = 'none';
+          this.$recentSection.style.display = 'none';
+          this.$results.innerHTML = '';
+          this.setCurrentTimeRiyadh();
+        }
+
+        async loadRecentVisits(customerId) {
+          const F = window.firebaseDB_instance;
+          // More efficient alternative (optional): implement listLatestRegistrationsForCustomer in online-database.js
+          const all = await F.getDailyRegistrations();
+          const recent = all
+            .filter(reg => reg.customerId === customerId)
+            .sort((a, b) => new Date(`${b.date} ${b.time || '00:00'}`) - new Date(`${a.date} ${a.time || '00:00'}`))
+            .slice(0, 5);
+
+          if (!recent.length) {
+            this.$recentList.innerHTML = '<p class="text-muted text-center">لا توجد زيارات سابقة</p>';
+          } else {
+            this.$recentList.innerHTML = '';
+            recent.forEach(visit => {
+              const div = document.createElement('div');
+              div.className = 'd-flex justify-content-between align-items-center mb-2 p-2 border rounded';
+              const qty = this.formatRegistrationQuantity(visit);
+              div.innerHTML = `
+                <div>
+                  <strong>${visit.date || '-'}</strong><br>
+                  <small class="text-muted">${qty}</small>
+                </div>
+                <div><span class="badge bg-primary">${visit.time || '-'}</span></div>
+              `;
+              this.$recentList.appendChild(div);
+            });
+          }
+          this.$recentSection.style.display = 'block';
+        }
+
+        async loadTodayRegistrations() {
+          const F = window.firebaseDB_instance;
+
+          // Loading indicator
+          this.$todayTbody.innerHTML = '<tr><td colspan="6" class="text-center py-3"><div class="spinner-border"></div></td></tr>';
+
+          const regs = await F.getTodayRegistrations();
+          if (!regs.length) {
+            this.$todayTbody.innerHTML = '<tr><td colspan="6" class="text-center">لا توجد تسجيلات اليوم</td></tr>';
+            return;
+          }
+
+          // Preload all customers once -> map by id
+          const customers = await F.getCustomers();
+          const cMap = new Map(customers.map(c => [c.id, c]));
+
+          this.$todayTbody.innerHTML = '';
+          regs.forEach(reg => {
+            const c = cMap.get(reg.customerId);
+            const name = c ? c.name : 'عميل غير معروف';
+            const type = this.getRegistrationType(reg);
+            const qty  = this.getRegistrationQuantity(reg);
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>${reg.time || '-'}</td>
+              <td>${name}</td>
+              <td>${type}</td>
+              <td>${qty}</td>
+              <td><span class="badge bg-success">مكتمل</span></td>
+              <td>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteRegistration('${reg.id}')">حذف</button>
+              </td>
+            `;
+            this.$todayTbody.appendChild(tr);
+          });
+        }
+
+        getRegistrationType(reg) {
+          if ((reg.meals || 0) > 0 && (reg.snacks || 0) > 0) return 'وجبات وسناكس';
+          if ((reg.meals || 0) > 0) return 'وجبات';
+          if ((reg.snacks || 0) > 0) return 'سناكس';
+          return 'غير محدد';
+        }
+
+        getRegistrationQuantity(reg) {
+          const m = Number(reg.meals || 0);
+          const s = Number(reg.snacks || 0);
+
+          let text = '';
+          if (m > 0) {
+            text += (m === 1) ? 'وجبة واحدة' : (m === 2) ? 'وجبتين' : `${m} وجبات`;
+          }
+          if (s > 0) {
+            if (text) text += ' + ';
+            text += (s === 1) ? 'سناك واحد' : (s === 2) ? 'سناكين' : `${s} سناكس`;
+          }
+          return text || 'غير محدد';
+        }
+
+        formatRegistrationQuantity(reg) { return this.getRegistrationQuantity(reg); }
+      }
+
+      // -------- Global delete using Firestore --------
+      async function deleteRegistration(id) {
+        const F = window.firebaseDB_instance;
+        if (!id) return;
+
+        if (!confirm('هل أنت متأكد من حذف هذا التسجيل؟')) return;
+
+        try {
+          await F.deleteDailyRegistration(id); // This also restores counters (meals/snacks) in online-database.js
+          dailyRegistrationManager.loadTodayRegistrations();
+          alert('تم حذف التسجيل بنجاح');
+        } catch (e) {
+          console.error(e);
+          alert('تعذّر حذف التسجيل. حاول مجددًا.');
+        }
+      }
+
+      // Initialize
+      let dailyRegistrationManager;
+      document.addEventListener('DOMContentLoaded', async function () {
+        try {
+          await waitForFirebaseInstance();
+          dailyRegistrationManager = new DailyRegistrationManager();
+        } catch (e) {
+          console.error(e);
+          alert('تعذّر تحميل الصفحة. يرجى إعادة المحاولة.');
+        }
+      });
+
+      // Logout
+      function logout() {
+        if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
+          localStorage.removeItem('isLoggedIn');
+          localStorage.removeItem('username');
+          window.location.href = 'login.html';
+        }
+      }
     </script>
     
     <!-- Firebase SDK -->
