@@ -209,6 +209,14 @@
                                 </label>
                             </div>
                         </div>
+                        <div class="mb-3">
+                            <label for="editStatus" class="form-label">الحالة</label>
+                            <select class="form-select" id="editStatus">
+                                <option value="نشط">نشط</option>
+                                <option value="معلق">معلق</option>
+                                <option value="منتهي">منتهي</option>
+                            </select>
+                        </div>
                     </form>
                 </div>
                 <div class="modal-footer">
@@ -226,6 +234,17 @@
             window.location.href = 'login.html';
         }
 
+        // Helper functions
+        const RIYADH_TZ = 'Asia/Riyadh';
+        function nowInRiyadh() { return new Date(new Date().toLocaleString('en-US', { timeZone: RIYADH_TZ })); }
+        function addDaysRiyadh(yyyy_mm_dd, days) {
+            const [y, m, d] = yyyy_mm_dd.split('-').map(Number);
+            const base = new Date(`${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}T00:00:00+03:00`);
+            base.setDate(base.getDate() + days);
+            return base.toISOString().slice(0, 10);
+        }
+        function assert(condition, msg) { if (!condition) { throw new Error(msg); } }
+
         // Subscription Management
         class SubscriptionManager {
             constructor() {
@@ -234,66 +253,95 @@
                 this.setupEventListeners();
             }
 
-            async loadSubscriptions() {
-                const subscriptions = await window.firebaseDB_instance.getSubscriptions();
+            setLoading(isLoading) {
                 const tbody = document.getElementById('subscriptionsTableBody');
-                tbody.innerHTML = '';
-
-                if (subscriptions.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="8" class="text-center">لا يوجد اشتراكات</td></tr>';
-                    return;
+                if (isLoading) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4"><div class="spinner-border"></div></td></tr>';
                 }
+            }
 
-                for (const subscription of subscriptions) {
-                    const customer = await window.firebaseDB_instance.getCustomerById(subscription.customerId);
-                    const packageData = await window.firebaseDB_instance.getPackageById(subscription.packageId);
-                    
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${subscription.startDate}</td>
-                        <td>${subscription.endDate}</td>
-                        <td>${customer ? customer.name : 'عميل غير معروف'}</td>
-                        <td>${packageData ? packageData.name : 'باقة غير معروفة'}</td>
-                        <td>${subscription.remainingMeals}</td>
-                        <td>${subscription.remainingSnacks}</td>
-                        <td><span class="badge ${this.getStatusBadgeClass(subscription.status)}">${subscription.status}</span></td>
-                        <td>
-                            <button class="btn btn-sm btn-outline-primary me-1" onclick="editSubscription('${subscription.id}')">تعديل</button>
-                            <button class="btn btn-sm btn-outline-danger" onclick="deleteSubscription('${subscription.id}')">حذف</button>
-                        </td>
-                    `;
-                    tbody.appendChild(row);
-                });
+            async loadSubscriptions() {
+                this.setLoading(true);
+                const tbody = document.getElementById('subscriptionsTableBody');
+                try {
+                    const [subscriptions, customers, packages] = await Promise.all([
+                        window.firebaseDB_instance.getSubscriptions(),
+                        window.firebaseDB_instance.getCustomers(),
+                        window.firebaseDB_instance.getPackages()
+                    ]);
+
+                    const cMap = new Map(customers.map(c => [c.id, c]));
+                    const pMap = new Map(packages.map(p => [p.id, p]));
+
+                    tbody.innerHTML = '';
+                    if (!subscriptions.length) {
+                        tbody.innerHTML = '<tr><td colspan="8" class="text-center">لا يوجد اشتراكات</td></tr>';
+                        return;
+                    }
+
+                    // Sort by startDate desc then customer name
+                    subscriptions.sort((a, b) => {
+                        const t = (b.startDate || '').localeCompare(a.startDate || '');
+                        if (t !== 0) return t;
+                        const an = (cMap.get(a.customerId)?.name || '').localeCompare(cMap.get(b.customerId)?.name || '');
+                        return an;
+                    });
+
+                    subscriptions.forEach(sub => {
+                        const customer = cMap.get(sub.customerId);
+                        const pkg = pMap.get(sub.packageId);
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${sub.startDate || '-'}</td>
+                            <td>${sub.endDate || '-'}</td>
+                            <td>${customer ? customer.name : 'عميل غير معروف'}</td>
+                            <td>${pkg ? pkg.name : 'باقة غير معروفة'}</td>
+                            <td>${Number(sub.remainingMeals ?? 0)}</td>
+                            <td>${Number(sub.remainingSnacks ?? 0)}</td>
+                            <td><span class="badge ${this.getStatusBadgeClass(sub.status)}">${sub.status || '-'}</span></td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary me-1" onclick="editSubscription('${sub.id}')">تعديل</button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteSubscription('${sub.id}')">حذف</button>
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                } catch (e) {
+                    console.error(e);
+                    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">تعذّر تحميل الاشتراكات</td></tr>';
+                }
             }
 
             async loadCustomersAndPackages() {
-                // Load customers
+                // Customers
                 const customerSelect = document.getElementById('subscriptionCustomer');
                 const customers = await window.firebaseDB_instance.getCustomers();
+                customers.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
                 customerSelect.innerHTML = '<option value="">-- اختر العميل --</option>';
-                
-                customers.forEach(customer => {
-                    const option = document.createElement('option');
-                    option.value = customer.id;
-                    option.textContent = `${customer.name} - ${customer.phone}`;
-                    customerSelect.appendChild(option);
+                customers.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.id;
+                    opt.textContent = `${c.name} - ${c.phone}`;
+                    customerSelect.appendChild(opt);
                 });
 
-                // Load packages
+                // Packages
                 const packageSelect = document.getElementById('subscriptionPackage');
                 const packages = await window.firebaseDB_instance.getPackages();
+                packages.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
                 packageSelect.innerHTML = '<option value="">-- اختر الباقة --</option>';
-                
-                packages.forEach(packageData => {
-                    const option = document.createElement('option');
-                    option.value = packageData.id;
-                    option.textContent = `${packageData.name} - ${packageData.price} ريال (${packageData.meals} وجبة)`;
-                    packageSelect.appendChild(option);
+                packages.forEach(p => {
+                    const price = (Number(p.price) || 0).toFixed(2);
+                    const meals = Number(p.meals) || 0;
+                    const opt = document.createElement('option');
+                    opt.value = p.id;
+                    opt.textContent = `${p.name} - ${price} ريال (${meals} وجبة)`;
+                    packageSelect.appendChild(opt);
                 });
             }
 
             getStatusBadgeClass(status) {
-                switch(status) {
+                switch (status) {
                     case 'نشط': return 'bg-success';
                     case 'منتهي': return 'bg-danger';
                     case 'معلق': return 'bg-warning';
@@ -302,86 +350,66 @@
             }
 
             setupEventListeners() {
-                // Auto-calculate end date when start date changes
-                document.getElementById('startDate').addEventListener('change', function() {
-                    const startDate = new Date(this.value);
-                    if (startDate) {
-                        const endDate = new Date(startDate);
-                        endDate.setDate(endDate.getDate() + 52); // 52 days duration
-                        document.getElementById('endDate').value = endDate.toISOString().split('T')[0];
+                // Default today + 52
+                const startEl = document.getElementById('startDate');
+                const endEl = document.getElementById('endDate');
+                const today = nowInRiyadh().toISOString().slice(0, 10);
+                startEl.value = today;
+                endEl.value = addDaysRiyadh(today, 52);
+
+                startEl.addEventListener('change', function () {
+                    if (this.value) {
+                        endEl.value = addDaysRiyadh(this.value, 52);
                     }
                 });
-
-                // Set today's date as default start date
-                const today = new Date().toISOString().split('T')[0];
-                document.getElementById('startDate').value = today;
-                const endDate = new Date();
-                endDate.setDate(endDate.getDate() + 52);
-                document.getElementById('endDate').value = endDate.toISOString().split('T')[0];
             }
         }
 
         // Global functions
         async function addSubscription() {
-            const customerId = document.getElementById('subscriptionCustomer').value;
-            const packageId = document.getElementById('subscriptionPackage').value;
-            const startDate = document.getElementById('startDate').value;
-            const endDate = document.getElementById('endDate').value;
-            const hasSnacks = document.getElementById('hasSnacks').checked;
+            const btn = document.querySelector('#addSubscriptionModal .btn.btn-primary');
+            btn.disabled = true;
+            try {
+                const customerId = document.getElementById('subscriptionCustomer').value;
+                const packageId = document.getElementById('subscriptionPackage').value;
+                const startDate = document.getElementById('startDate').value;
+                const endDate = document.getElementById('endDate').value;
+                const hasSnacks = document.getElementById('hasSnacks').checked;
 
-            if (!customerId) {
-                alert('يرجى اختيار العميل');
-                return;
-            }
+                if (!customerId) throw new Error('يرجى اختيار العميل');
+                if (!packageId) throw new Error('يرجى اختيار الباقة');
+                if (!startDate || !endDate) throw new Error('يرجى اختيار تاريخ البدء والانتهاء');
+                assert(startDate <= endDate, 'تاريخ الانتهاء يجب أن يكون بعد تاريخ البدء');
 
-            if (!packageId) {
-                alert('يرجى اختيار الباقة');
-                return;
-            }
+                const existing = await window.firebaseDB_instance.getActiveSubscriptionByCustomerId(customerId);
+                if (existing) throw new Error('العميل لديه اشتراك نشط بالفعل');
 
-            if (!startDate || !endDate) {
-                alert('يرجى اختيار تاريخ البدء والانتهاء');
-                return;
-            }
+                const pkg = await window.firebaseDB_instance.getPackageById(packageId);
+                const remainingMeals = Number(pkg?.meals || 0);
+                const remainingSnacks = hasSnacks ? Math.round(remainingMeals / 2) : 0;
 
-            // Check if customer already has active subscription
-            const existingSubscription = await window.firebaseDB_instance.getActiveSubscriptionByCustomerId(customerId);
-            if (existingSubscription) {
-                alert('العميل لديه اشتراك نشط بالفعل');
-                return;
-            }
-
-            // Get package data to calculate remaining meals/snacks
-            const packageData = await window.firebaseDB_instance.getPackageById(packageId);
-            const remainingMeals = packageData.meals;
-            const remainingSnacks = hasSnacks ? Math.round(packageData.meals / 2) : 0;
-
-            const subscription = await window.firebaseDB_instance.createSubscription({
-                customerId,
-                packageId,
-                startDate,
-                endDate,
-                hasSnacks,
-                remainingMeals,
-                remainingSnacks,
-                status: 'نشط'
-            });
-
-            if (subscription) {
-                // Add activity
-                const customer = await window.firebaseDB_instance.getCustomerById(customerId);
-                await window.firebaseDB_instance.logActivity({
-                    type: 'إضافة اشتراك',
-                    customerId: customerId,
-                    description: `تم إضافة اشتراك ${packageData.name} للعميل ${customer.name}`
+                const sub = await window.firebaseDB_instance.createSubscription({
+                    customerId, packageId, startDate, endDate,
+                    hasSnacks, remainingMeals, remainingSnacks,
+                    status: 'نشط'
                 });
 
-                // Close modal and refresh table
-                bootstrap.Modal.getInstance(document.getElementById('addSubscriptionModal')).hide();
-                document.getElementById('addSubscriptionForm').reset();
-                subscriptionManager.loadSubscriptions();
-                
-                alert('تم إضافة الاشتراك بنجاح');
+                if (sub) {
+                    const customer = await window.firebaseDB_instance.getCustomerById(customerId);
+                    await window.firebaseDB_instance.logActivity({
+                        type: 'إضافة اشتراك',
+                        customerId,
+                        description: `تم إضافة اشتراك ${pkg.name} للعميل ${customer?.name || ''}`
+                    });
+                    bootstrap.Modal.getInstance(document.getElementById('addSubscriptionModal')).hide();
+                    document.getElementById('addSubscriptionForm').reset();
+                    subscriptionManager.loadSubscriptions();
+                    alert('تم إضافة الاشتراك بنجاح');
+                }
+            } catch (e) {
+                alert(e.message || 'حدث خطأ أثناء إضافة الاشتراك');
+            } finally {
+                btn.disabled = false;
             }
         }
 
@@ -399,62 +427,78 @@
             document.getElementById('editStartDate').value = subscription.startDate;
             document.getElementById('editEndDate').value = subscription.endDate;
             document.getElementById('editHasSnacks').checked = subscription.hasSnacks;
+            
+            const statusEl = document.getElementById('editStatus');
+            if (statusEl) statusEl.value = subscription.status || 'نشط';
 
             new bootstrap.Modal(document.getElementById('editSubscriptionModal')).show();
         }
 
         async function updateSubscription() {
-            const id = document.getElementById('editSubscriptionId').value;
-            const startDate = document.getElementById('editStartDate').value;
-            const endDate = document.getElementById('editEndDate').value;
-            const hasSnacks = document.getElementById('editHasSnacks').checked;
+            const btn = document.querySelector('#editSubscriptionModal .btn.btn-primary');
+            btn.disabled = true;
+            try {
+                const id = document.getElementById('editSubscriptionId').value;
+                const startDate = document.getElementById('editStartDate').value;
+                const endDate = document.getElementById('editEndDate').value;
+                const hasSnacks = document.getElementById('editHasSnacks').checked;
+                const statusEl = document.getElementById('editStatus'); // optional
+                const status = statusEl ? statusEl.value : undefined;
 
-            if (!startDate || !endDate) {
-                alert('يرجى اختيار تاريخ البدء والانتهاء');
-                return;
+                if (!startDate || !endDate) throw new Error('يرجى اختيار تاريخ البدء والانتهاء');
+                assert(startDate <= endDate, 'تاريخ الانتهاء يجب أن يكون بعد تاريخ البدء');
+
+                const fields = { startDate, endDate, hasSnacks };
+                if (status) fields.status = status;
+
+                await window.firebaseDB_instance.updateSubscription(id, fields);
+
+                const subs = await window.firebaseDB_instance.getSubscriptions();
+                const updated = subs.find(s => s.id === id);
+                const customer = await window.firebaseDB_instance.getCustomerById(updated.customerId);
+
+                await window.firebaseDB_instance.logActivity({
+                    type: 'تعديل اشتراك',
+                    customerId: updated.customerId,
+                    description: `تم تعديل اشتراك العميل ${customer?.name || ''}`
+                });
+
+                bootstrap.Modal.getInstance(document.getElementById('editSubscriptionModal')).hide();
+                subscriptionManager.loadSubscriptions();
+                alert('تم تحديث الاشتراك بنجاح');
+            } catch (e) {
+                alert(e.message || 'حدث خطأ أثناء تحديث الاشتراك');
+            } finally {
+                btn.disabled = false;
             }
-
-            await window.firebaseDB_instance.updateSubscription(id, {
-                startDate,
-                endDate,
-                hasSnacks
-            });
-
-            // Add activity
-            const subscriptions = await window.firebaseDB_instance.getSubscriptions();
-            const updatedSubscription = subscriptions.find(s => s.id === id);
-            const customer = await window.firebaseDB_instance.getCustomerById(updatedSubscription.customerId);
-            await window.firebaseDB_instance.logActivity({
-                type: 'تعديل اشتراك',
-                customerId: updatedSubscription.customerId,
-                description: `تم تعديل اشتراك العميل ${customer.name}`
-            });
-
-            // Close modal and refresh table
-            bootstrap.Modal.getInstance(document.getElementById('editSubscriptionModal')).hide();
-            subscriptionManager.loadSubscriptions();
-            
-            alert('تم تحديث الاشتراك بنجاح');
         }
 
         async function deleteSubscription(id) {
-            const subscriptions = await window.firebaseDB_instance.getSubscriptions();
-            const subscription = subscriptions.find(s => s.id === id);
-            if (!subscription) return;
+            const subs = await window.firebaseDB_instance.getSubscriptions();
+            const sub = subs.find(s => s.id === id);
+            if (!sub) return;
 
-            const customer = await window.firebaseDB_instance.getCustomerById(subscription.customerId);
-            if (confirm(`هل أنت متأكد من حذف اشتراك العميل ${customer ? customer.name : 'غير معروف'}؟`)) {
-                // Add activity
-                await window.firebaseDB_instance.logActivity({
-                    type: 'حذف اشتراك',
-                    customerId: subscription.customerId,
-                    description: `تم حذف اشتراك العميل ${customer ? customer.name : 'غير معروف'}`
-                });
+            const customer = await window.firebaseDB_instance.getCustomerById(sub.customerId);
 
-                await window.firebaseDB_instance.deleteSubscription(id);
-                subscriptionManager.loadSubscriptions();
-                alert('تم حذف الاشتراك بنجاح');
+            // Prevent deleting if there are daily registrations within the subscription window
+            const allRegs = await window.firebaseDB_instance.getDailyRegistrations(1000);
+            const hasRegs = allRegs.some(r => r.customerId === sub.customerId && r.date >= sub.startDate && r.date <= sub.endDate);
+            if (hasRegs) {
+                alert('لا يمكن حذف الاشتراك لوجود تسجيلات يومية ضمن فترة الاشتراك. احذف التسجيلات أولاً أو أنهِ الاشتراك.');
+                return;
             }
+
+            if (!confirm(`هل أنت متأكد من حذف اشتراك العميل ${customer ? customer.name : 'غير معروف'}؟`)) return;
+
+            await window.firebaseDB_instance.logActivity({
+                type: 'حذف اشتراك',
+                customerId: sub.customerId,
+                description: `تم حذف اشتراك العميل ${customer ? customer.name : 'غير معروف'}`
+            });
+
+            await window.firebaseDB_instance.deleteSubscription(id);
+            subscriptionManager.loadSubscriptions();
+            alert('تم حذف الاشتراك بنجاح');
         }
 
         // Initialize subscription manager

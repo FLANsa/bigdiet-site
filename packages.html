@@ -199,32 +199,44 @@
             window.location.href = 'login.html';
         }
 
+        // Helper functions
+        function normalizeName(s) { return (s || '').trim().toLowerCase(); }
+        function priceText(v) { return (Number(v) || 0).toFixed(2) + ' ريال'; }
+
         // Package Management
         class PackageManager {
             constructor() {
                 this.loadPackages();
             }
 
+            setLoading(isLoading) {
+                const tbody = document.getElementById('packagesTableBody');
+                if (isLoading) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4"><div class="spinner-border"></div></td></tr>';
+                }
+            }
+
             async loadPackages() {
-                // Use Firebase only
+                this.setLoading(true);
                 const packages = await window.firebaseDB_instance.getPackages();
                 const tbody = document.getElementById('packagesTableBody');
                 tbody.innerHTML = '';
 
-                if (packages.length === 0) {
+                if (!packages.length) {
                     tbody.innerHTML = '<tr><td colspan="7" class="text-center">لا يوجد باقات</td></tr>';
+                    this.setLoading(false);
                     return;
                 }
 
                 packages.forEach(packageData => {
                     const row = document.createElement('tr');
                     row.innerHTML = `
-                        <td>${packageData.name}</td>
-                        <td>${packageData.price} ريال</td>
+                        <td>${packageData.name || '-'}</td>
+                        <td>${priceText(packageData.price)}</td>
                         <td>52 يوم</td>
-                        <td>${packageData.meals}</td>
+                        <td>${packageData.meals ?? '-'}</td>
                         <td>${packageData.description || '-'}</td>
-                        <td><span class="badge ${this.getStatusBadgeClass(packageData.status)}">${packageData.status}</span></td>
+                        <td><span class="badge ${this.getStatusBadgeClass(packageData.status)}">${packageData.status || '-'}</span></td>
                         <td>
                             <button class="btn btn-sm btn-outline-primary me-1" onclick="editPackage('${packageData.id}')">تعديل</button>
                             <button class="btn btn-sm btn-outline-danger" onclick="deletePackage('${packageData.id}')">حذف</button>
@@ -232,6 +244,7 @@
                     `;
                     tbody.appendChild(row);
                 });
+                this.setLoading(false);
             }
 
             getStatusBadgeClass(status) {
@@ -266,36 +279,44 @@
                 return;
             }
 
-            // Check if package name already exists
-            const existingPackages = await window.firebaseDB_instance.getPackages();
-            const existingPackage = existingPackages.find(p => p.name === name);
-            if (existingPackage) {
-                alert('اسم الباقة مسجل مسبقاً');
-                return;
-            }
+            const btnAdd = document.querySelector('#addPackageModal .btn.btn-primary');
+            btnAdd.disabled = true;
+            try {
+                // Check if package name already exists (case-insensitive, trimmed)
+                const existingPackages = await window.firebaseDB_instance.getPackages();
+                const nameNorm = normalizeName(name);
+                if (existingPackages.some(p => normalizeName(p.name) === nameNorm)) {
+                    alert('اسم الباقة مسجل مسبقاً');
+                    return;
+                }
 
-            // Use Firebase only
-            const packageData = await window.firebaseDB_instance.addPackage({
-                name,
-                price,
-                meals,
-                description
-            });
-
-            if (packageData) {
-                // Add activity
-                await window.firebaseDB_instance.logActivity({
-                    type: 'إضافة باقة',
-                    customerId: null,
-                    description: `تم إضافة باقة ${name}`
+                // Use Firebase only
+                const packageData = await window.firebaseDB_instance.addPackage({
+                    name,
+                    price,
+                    meals,
+                    description,
+                    duration: 52,
+                    status: 'نشط'
                 });
 
-                // Close modal and refresh table
-                bootstrap.Modal.getInstance(document.getElementById('addPackageModal')).hide();
-                document.getElementById('addPackageForm').reset();
-                packageManager.loadPackages();
-                
-                alert('تم إضافة الباقة بنجاح');
+                if (packageData) {
+                    // Add activity
+                    await window.firebaseDB_instance.logActivity({
+                        type: 'إضافة باقة',
+                        customerId: null,
+                        description: `تم إضافة باقة ${name}`
+                    });
+
+                    // Close modal and refresh table
+                    bootstrap.Modal.getInstance(document.getElementById('addPackageModal')).hide();
+                    document.getElementById('addPackageForm').reset();
+                    packageManager.loadPackages();
+                    
+                    alert('تم إضافة الباقة بنجاح');
+                }
+            } finally {
+                btnAdd.disabled = false;
             }
         }
 
@@ -336,34 +357,40 @@
                 return;
             }
 
-            // Check if package name already exists for other packages
-            const existingPackages = await window.firebaseDB_instance.getPackages();
-            const existingPackage = existingPackages.find(p => p.name === name && p.id !== id);
-            if (existingPackage) {
-                alert('اسم الباقة مسجل مسبقاً');
-                return;
-            }
+            const btnSave = document.querySelector('#editPackageModal .btn.btn-primary');
+            btnSave.disabled = true;
+            try {
+                // Check if package name already exists for other packages (case-insensitive, trimmed)
+                const existingPackages = await window.firebaseDB_instance.getPackages();
+                const nameNorm = normalizeName(name);
+                if (existingPackages.some(p => p.id !== id && normalizeName(p.name) === nameNorm)) {
+                    alert('اسم الباقة مسجل مسبقاً');
+                    return;
+                }
 
-            await window.firebaseDB_instance.updatePackage(id, {
-                name,
-                price,
-                meals,
-                description,
-                status
-            });
+                await window.firebaseDB_instance.updatePackage(id, {
+                    name,
+                    price,
+                    meals,
+                    description,
+                    status,
+                    duration: 52
+                });
 
-            // Add activity
-            await window.firebaseDB_instance.logActivity({
-                type: 'تعديل باقة',
-                customerId: null,
-                description: `تم تعديل باقة ${name}`
-            });
+                // Add activity
+                await window.firebaseDB_instance.logActivity({
+                    type: 'تعديل باقة',
+                    customerId: null,
+                    description: `تم تعديل باقة ${name}`
+                });
 
                 // Close modal and refresh table
                 bootstrap.Modal.getInstance(document.getElementById('editPackageModal')).hide();
                 packageManager.loadPackages();
                 
                 alert('تم تحديث الباقة بنجاح');
+            } finally {
+                btnSave.disabled = false;
             }
         }
 
@@ -379,12 +406,13 @@
                 return;
             }
 
-            if (confirm(`هل أنت متأكد من حذف الباقة ${packageData.name}؟`)) {
+            const packageName = packageData.name || 'غير محدد';
+            if (confirm(`هل أنت متأكد من حذف الباقة ${packageName}؟`)) {
                 // Add activity
                 await window.firebaseDB_instance.logActivity({
                     type: 'حذف باقة',
                     customerId: null,
-                    description: `تم حذف باقة ${packageData.name}`
+                    description: `تم حذف باقة ${packageName}`
                 });
 
                 await window.firebaseDB_instance.deletePackage(id);
