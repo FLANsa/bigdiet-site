@@ -57,6 +57,50 @@
                     </div>
                 </div>
 
+                <!-- Revenue Summary -->
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">إجمالي الإيرادات من الاشتراكات</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <div class="text-center p-3 bg-light rounded">
+                                            <h4 class="text-primary mb-1" id="totalRevenue">0.00</h4>
+                                            <small class="text-muted">إجمالي الإيرادات (ريال)</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="text-center p-3 bg-light rounded">
+                                            <h4 class="text-success mb-1" id="totalSubscriptions">0</h4>
+                                            <small class="text-muted">إجمالي الاشتراكات</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="text-center p-3 bg-light rounded">
+                                            <h4 class="text-warning mb-1" id="activeSubscriptions">0</h4>
+                                            <small class="text-muted">الاشتراكات النشطة</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="text-center p-3 bg-light rounded">
+                                            <h4 class="text-info mb-1" id="averageRevenue">0.00</h4>
+                                            <small class="text-muted">متوسط الإيراد لكل اشتراك</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mt-3">
+                                    <button class="btn btn-primary" onclick="refreshRevenue()">
+                                        <i class="bi bi-arrow-clockwise"></i> تحديث الإيرادات
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Pricing Summary -->
                 <div class="row mt-4">
                     <div class="col-md-6">
@@ -141,6 +185,7 @@
                     this.packages = await F.getPackages();
                     this.renderPackages();
                     this.populatePackageSelector();
+                    this.loadRevenueData();
                 } catch (error) {
                     console.error('Error loading packages:', error);
                     document.getElementById('packagesTableBody').innerHTML = 
@@ -209,10 +254,67 @@
                 document.getElementById('finalPrice').textContent = finalPrice.toFixed(2);
                 document.getElementById('priceResult').style.display = 'block';
             }
+
+            async loadRevenueData() {
+                try {
+                    const F = window.firebaseDB_instance;
+                    if (!F) {
+                        throw new Error('Firebase not available');
+                    }
+
+                    // Get all subscriptions
+                    const subscriptions = await F.getSubscriptions();
+                    
+                    // Create package map for quick lookup
+                    const packageMap = new Map(this.packages.map(pkg => [pkg.id, pkg]));
+                    
+                    let totalRevenue = 0;
+                    let activeSubscriptions = 0;
+                    
+                    subscriptions.forEach(sub => {
+                        const pkg = packageMap.get(sub.packageId);
+                        if (pkg) {
+                            const basePrice = Number(pkg.price) || 0;
+                            const snacksPrice = sub.hasSnacks ? 150 : 0;
+                            const subscriptionRevenue = basePrice + snacksPrice;
+                            
+                            totalRevenue += subscriptionRevenue;
+                            
+                            if (sub.status === 'نشط') {
+                                activeSubscriptions++;
+                            }
+                        }
+                    });
+                    
+                    const totalSubscriptions = subscriptions.length;
+                    const averageRevenue = totalSubscriptions > 0 ? totalRevenue / totalSubscriptions : 0;
+                    
+                    // Update the display
+                    document.getElementById('totalRevenue').textContent = totalRevenue.toFixed(2);
+                    document.getElementById('totalSubscriptions').textContent = totalSubscriptions;
+                    document.getElementById('activeSubscriptions').textContent = activeSubscriptions;
+                    document.getElementById('averageRevenue').textContent = averageRevenue.toFixed(2);
+                    
+                } catch (error) {
+                    console.error('Error loading revenue data:', error);
+                    // Show error in the revenue section
+                    document.getElementById('totalRevenue').textContent = 'خطأ';
+                    document.getElementById('totalSubscriptions').textContent = 'خطأ';
+                    document.getElementById('activeSubscriptions').textContent = 'خطأ';
+                    document.getElementById('averageRevenue').textContent = 'خطأ';
+                }
+            }
         }
 
         // Initialize pricing manager
         let pricingManager;
+
+        // Global function for refresh button
+        function refreshRevenue() {
+            if (pricingManager) {
+                pricingManager.loadRevenueData();
+            }
+        }
 
         document.addEventListener('DOMContentLoaded', function() {
             // Check if user is logged in with user role
