@@ -146,7 +146,24 @@
                                     </div>
                                 </form>
                                 <div id="priceResult" class="alert alert-success" style="display: none;">
-                                    <h5>السعر النهائي: <span id="finalPrice">0</span> ريال</h5>
+                                    <div class="row">
+                                        <div class="col-12">
+                                            <h5 class="mb-3">تفاصيل السعر:</h5>
+                                            <div class="d-flex justify-content-between mb-2">
+                                                <span>سعر الباقة:</span>
+                                                <span id="basePrice">0.00</span> ريال
+                                            </div>
+                                            <div class="d-flex justify-content-between mb-2" id="snacksRow" style="display: none;">
+                                                <span>السناكس:</span>
+                                                <span>+150.00</span> ريال
+                                            </div>
+                                            <hr>
+                                            <div class="d-flex justify-content-between">
+                                                <strong>السعر النهائي:</strong>
+                                                <strong><span id="finalPrice">0.00</span> ريال</strong>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -172,6 +189,20 @@
                 document.getElementById('priceCalculator').addEventListener('submit', (e) => {
                     e.preventDefault();
                     this.calculatePrice();
+                });
+
+                // Auto-calculate when package selection changes
+                document.getElementById('selectedPackage').addEventListener('change', () => {
+                    if (document.getElementById('selectedPackage').value) {
+                        this.calculatePrice();
+                    }
+                });
+
+                // Auto-calculate when snacks checkbox changes
+                document.getElementById('includeSnacks').addEventListener('change', () => {
+                    if (document.getElementById('selectedPackage').value) {
+                        this.calculatePrice();
+                    }
                 });
             }
 
@@ -251,7 +282,18 @@
                 const snacksPrice = includeSnacks ? 150 : 0;
                 const finalPrice = basePrice + snacksPrice;
 
+                // Update the display with breakdown
+                document.getElementById('basePrice').textContent = basePrice.toFixed(2);
                 document.getElementById('finalPrice').textContent = finalPrice.toFixed(2);
+                
+                // Show/hide snacks row based on selection
+                const snacksRow = document.getElementById('snacksRow');
+                if (includeSnacks) {
+                    snacksRow.style.display = 'flex';
+                } else {
+                    snacksRow.style.display = 'none';
+                }
+                
                 document.getElementById('priceResult').style.display = 'block';
             }
 
