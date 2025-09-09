@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Portal - big diet</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: 
+                linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%),
+                url('textured-green-bg.svg');
+            background-size: 200px 200px;
+            background-repeat: repeat;
+            background-attachment: fixed;
+            min-height: 100vh;
+            margin: 0;
+        }
+        
+        .hero-section {
+            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+            backdrop-filter: blur(10px);
+            border-radius: 30px;
+            margin: 20px;
+            padding: 60px 20px;
+            text-align: center;
+            color: white;
+        }
+        
+        .main-card {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(25px);
+            border-radius: 25px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.2);
+            border: 2px solid rgba(255,255,255,0.4);
+            overflow: hidden;
+        }
+        
+        .card-header {
+            background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
+            border: none;
+            padding: 40px 30px;
+            text-align: center;
+        }
+        
+        .icon-circle {
+            width: 80px;
+            height: 80px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 35px;
+        }
+        
+        .form-control {
+            border-radius: 15px;
+            border: 2px solid #e9ecef;
+            padding: 15px 20px;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .form-control:focus {
+            border-color: #56ab2f;
+            box-shadow: 0 0 0 0.2rem rgba(86, 171, 47, 0.25);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
+            border: none;
+            border-radius: 15px;
+            padding: 15px 30px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(86, 171, 47, 0.4);
+        }
+        
+        .stats-card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 20px;
+            border: none;
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+        
+        .stats-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.1);
+        }
+        
+        .stats-card.success {
+            background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
+            color: white;
+        }
+        
+        .stats-card.info {
+            background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%);
+            color: white;
+        }
+        
+        .stats-card.warning {
+            background: linear-gradient(135deg, #f7b731 0%, #f39c12 100%);
+            color: white;
+        }
+        
+        .stats-card.danger {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+        }
+        
+        .stats-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        
+        .stats-label {
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+        
+        .alert {
+            border-radius: 15px;
+            border: none;
+            padding: 20px;
+            font-weight: 500;
+        }
+        
+        .alert-danger {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+            color: white;
+        }
+        
+        .recent-visits {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 20px;
+            padding: 30px;
+            margin-top: 30px;
+        }
+        
+        .visit-item {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            border-right: 4px solid #56ab2f;
+        }
+        
+        .navbar-brand {
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+        
+        .input-group-text {
+            background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%) !important;
+            color: white !important;
+            border: none !important;
+            border-radius: 15px !important;
+        }
+        
+        .form-control {
+            border: 2px solid #e9ecef !important;
+            border-radius: 15px !important;
+        }
+        
+        .input-group .form-control {
+            border-radius: 15px !important;
+        }
+        
+        .input-group .input-group-text {
+            border-radius: 15px !important;
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Beautiful Header with White Background -->
+    <nav class="navbar navbar-expand-lg navbar-light" style="background: white; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+        <div class="container">
+            <a class="navbar-brand text-success d-flex align-items-center" href="customer-portal.html">
+                <div>
+                    <strong>big diet</strong>
+                    <div style="font-size: 0.9rem; opacity: 0.7;">بوابة العميل</div>
+                </div>
+            </a>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <div class="hero-section">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-lg-8 text-center">
+                    <h1 class="display-4 fw-bold mb-3">مرحباً بك في big diet</h1>
+                    <p class="lead mb-4">استعلم عن اشتراكك بسهولة وسرعة</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8 col-md-10">
+                <div class="main-card">
+                    <div class="card-header">
+                        <div class="icon-circle">
+                            <i class="fas fa-search"></i>
+                        </div>
+                        <h3 class="mb-2 fw-bold text-white">استعلام عن الاشتراك</h3>
+                        <p class="mb-0 opacity-90 text-white">ادخل رقم هاتفك للاطلاع على تفاصيل اشتراكك</p>
+                    </div>
+                    <div class="card-body p-5">
+                        <form id="customerInquiryForm" class="mb-4">
+                            <div class="mb-4">
+                                <label for="phoneNumber" class="form-label fw-semibold text-dark mb-3">رقم الهاتف</label>
+                                <div class="input-group input-group-lg">
+                                    <input type="tel" class="form-control" id="phoneNumber" 
+                                           placeholder="05xxxxxxxx" maxlength="10" required>
+                                    <span class="input-group-text">
+                                        <i class="fas fa-phone"></i>
+                                    </span>
+                                </div>
+                                <div class="form-text text-muted mt-2">يرجى إدخال رقم الهاتف المكون من 10 أرقام</div>
+                            </div>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="fas fa-search me-2"></i>استعلام عن الاشتراك
+                                </button>
+                            </div>
+                        </form>
+
+                        <!-- Error Message -->
+                        <div id="errorMessage" class="alert alert-danger" style="display: none;">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <span id="errorText"></span>
+                        </div>
+
+                        <!-- Subscription Details Card (Hidden by default) -->
+                        <div id="subscriptionDetails" class="fade-in" style="display: none;">
+                            <hr class="my-5">
+                            <h4 class="text-center mb-4 fw-bold text-success">
+                                <i class="fas fa-user-check me-2"></i>تفاصيل الاشتراك
+                            </h4>
+                            
+                            <div class="row g-4 mb-4">
+                                <div class="col-md-6">
+                                    <div class="stats-card">
+                                        <div class="card-body text-center p-4">
+                                            <div class="stats-number" id="customerName">-</div>
+                                            <div class="stats-label">اسم العميل</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="stats-card">
+                                        <div class="card-body text-center p-4">
+                                            <div class="stats-number" id="packageName">-</div>
+                                            <div class="stats-label">الباقة الحالية</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row g-4 mb-4">
+                                <div class="col-md-6">
+                                    <div class="stats-card success">
+                                        <div class="card-body text-center p-4">
+                                            <div class="stats-number" id="daysLeft">-</div>
+                                            <div class="stats-label">الأيام المتبقية</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="stats-card info">
+                                        <div class="card-body text-center p-4">
+                                            <div class="stats-number" id="endDate">-</div>
+                                            <div class="stats-label">تاريخ الانتهاء</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row g-4">
+                                <div class="col-md-6">
+                                    <div class="stats-card warning">
+                                        <div class="card-body text-center p-4">
+                                            <div class="stats-number" id="remainingMeals">-</div>
+                                            <div class="stats-label">الوجبات المتبقية</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="stats-card danger">
+                                        <div class="card-body text-center p-4">
+                                            <div class="stats-number" id="remainingSnacks">-</div>
+                                            <div class="stats-label">السناكس المتبقية</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Recent Visits Section -->
+                            <div class="recent-visits">
+                                <h5 class="fw-bold text-center mb-4">
+                                    <i class="fas fa-history me-2"></i>آخر الزيارات
+                                </h5>
+                                <div id="recentVisitsList">
+                                    <!-- Recent visits will be populated here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="database.js"></script>
+    <script>
+        class CustomerPortal {
+            constructor() {
+                this.db = new Database();
+                this.setupEventListeners();
+            }
+
+            setupEventListeners() {
+                document.getElementById('customerInquiryForm').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.searchCustomer();
+                });
+
+                // Phone number formatting
+                document.getElementById('phoneNumber').addEventListener('input', (e) => {
+                    let value = e.target.value.replace(/\D/g, '');
+                    if (value.length > 10) value = value.slice(0, 10);
+                    e.target.value = value;
+                });
+            }
+
+            searchCustomer() {
+                const phoneNumber = document.getElementById('phoneNumber').value.trim();
+                const errorMessage = document.getElementById('errorMessage');
+                const subscriptionDetails = document.getElementById('subscriptionDetails');
+
+                // Hide previous results
+                errorMessage.style.display = 'none';
+                subscriptionDetails.style.display = 'none';
+
+                // Validate phone number
+                if (!phoneNumber || phoneNumber.length !== 10) {
+                    this.showError('يرجى إدخال رقم هاتف صحيح مكون من 10 أرقام');
+                    return;
+                }
+
+                // Search for customer
+                const customer = this.db.getCustomers().find(c => c.phone === phoneNumber);
+                if (!customer) {
+                    this.showError('لم يتم العثور على عميل بهذا الرقم');
+                    return;
+                }
+
+                // Get customer's active subscription
+                const subscription = this.db.getSubscriptionByCustomerId(customer.id);
+                if (!subscription) {
+                    this.showError('لا يوجد اشتراك نشط لهذا العميل');
+                    return;
+                }
+
+                // Display subscription details
+                this.displaySubscriptionDetails(customer, subscription);
+            }
+
+            showError(message) {
+                const errorMessage = document.getElementById('errorMessage');
+                const errorText = document.getElementById('errorText');
+                errorText.textContent = message;
+                errorMessage.style.display = 'block';
+            }
+
+            displaySubscriptionDetails(customer, subscription) {
+                const packageData = this.db.getPackageById(subscription.packageId);
+                
+                // Calculate days left
+                const today = new Date();
+                const endDate = new Date(subscription.endDate);
+                const daysLeft = Math.max(0, Math.ceil((endDate - today) / (1000 * 60 * 60 * 24)));
+
+                // Update display
+                document.getElementById('customerName').textContent = customer.name;
+                document.getElementById('packageName').textContent = packageData ? packageData.name : 'غير محدد';
+                document.getElementById('daysLeft').textContent = daysLeft;
+                document.getElementById('endDate').textContent = subscription.endDate;
+                document.getElementById('remainingMeals').textContent = subscription.remainingMeals;
+                document.getElementById('remainingSnacks').textContent = subscription.remainingSnacks;
+
+                // Load recent visits
+                this.loadRecentVisits(customer.id);
+
+                // Show subscription details with animation
+                const subscriptionDetails = document.getElementById('subscriptionDetails');
+                subscriptionDetails.style.display = 'block';
+                subscriptionDetails.classList.add('fade-in');
+            }
+
+            loadRecentVisits(customerId) {
+                const recentVisits = this.db.getDailyRegistrations()
+                    .filter(reg => reg.customerId === customerId)
+                    .sort((a, b) => new Date(b.date + ' ' + b.time) - new Date(a.date + ' ' + a.time))
+                    .slice(0, 5);
+
+                const visitsList = document.getElementById('recentVisitsList');
+                
+                if (recentVisits.length === 0) {
+                    visitsList.innerHTML = '<div class="text-center text-muted py-4">لا توجد زيارات سابقة</div>';
+                    return;
+                }
+
+                visitsList.innerHTML = recentVisits.map(visit => {
+                    const description = this.formatVisitDescription(visit);
+                    return `
+                        <div class="visit-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>${visit.date}</strong>
+                                    <div class="text-muted">${visit.time}</div>
+                                </div>
+                                <div class="text-end">
+                                    <div class="fw-semibold">${description}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            formatVisitDescription(registration) {
+                let description = '';
+                
+                if (registration.meals > 0) {
+                    if (registration.meals === 1) description += 'وجبة واحدة';
+                    else if (registration.meals === 2) description += 'وجبتين';
+                    else description += `${registration.meals} وجبات`;
+                }
+                
+                if (registration.snacks > 0) {
+                    if (description) description += ' و ';
+                    if (registration.snacks === 1) description += 'سناك';
+                    else if (registration.snacks === 2) description += 'سناكين';
+                    else description += `${registration.snacks} سناكس`;
+                }
+
+                return description || 'لا توجد تفاصيل';
+            }
+        }
+
+        // Initialize customer portal
+        let customerPortal;
+        document.addEventListener('DOMContentLoaded', function() {
+            customerPortal = new CustomerPortal();
+        });
+    </script>
+</body>
+</html>
+

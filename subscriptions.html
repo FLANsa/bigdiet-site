@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subscriptions - Healthy Food Subscription System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="styles.css" rel="stylesheet">
+    <style>
+        .table thead th {
+            padding: 20px 30px !important;
+            font-size: 1.1rem !important;
+            font-weight: 600 !important;
+            min-width: 150px !important;
+            text-align: center !important;
+        }
+        .table thead th:first-child {
+            border-top-left-radius: 0 !important;
+            border-bottom-left-radius: 0 !important;
+        }
+        .table thead th:last-child {
+            border-top-right-radius: 0 !important;
+            border-bottom-right-radius: 0 !important;
+        }
+        .table tbody td {
+            padding: 15px 20px !important;
+            text-align: center !important;
+            vertical-align: middle !important;
+        }
+        .table tbody td:first-child,
+        
+        .table tbody td:nth-child(2) {
+            text-align: center !important;
+            font-family: monospace !important;
+        }
+        .table tbody td:nth-child(3),
+        .table tbody td:nth-child(4),
+        .table tbody td:nth-child(7) {
+            text-align: center !important;
+            padding: 15px 10px !important;
+        }
+        .table tbody td:nth-child(5),
+        .table tbody td:nth-child(6) {
+            text-align: center !important;
+            font-weight: 600 !important;
+            font-size: 1.1rem !important;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container">
+            <a class="navbar-brand" href="dashboard.html">big diet</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="dashboard.html">لوحة التحكم</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="customers.html">العملاء</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="subscriptions.html">الاشتراكات</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="daily-registration.html">التسجيل اليومي</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="packages.html">الباقات</a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <button class="btn btn-outline-danger btn-sm" onclick="logout()">تسجيل الخروج</button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>إدارة الاشتراكات</h1>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addSubscriptionModal">إضافة اشتراك</button>
+        </div>
+
+        <!-- Subscriptions Table -->
+        <div class="card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>تاريخ البدء</th>
+                                <th>تاريخ الانتهاء</th>
+                                <th>اسم المشترك</th>
+                                <th>الباقة</th>
+                                <th>الوجبات المتبقية</th>
+                                <th>السناكس المتبقية</th>
+                                <th>الحالة</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="subscriptionsTableBody">
+                            <!-- Subscriptions will be loaded dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Subscription Modal -->
+    <div class="modal fade" id="addSubscriptionModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">إضافة اشتراك جديد</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addSubscriptionForm">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="subscriptionCustomer" class="form-label">اختر العميل</label>
+                                <select class="form-select" id="subscriptionCustomer" required>
+                                    <option value="">-- اختر العميل --</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="subscriptionPackage" class="form-label">اختر الباقة</label>
+                                <select class="form-select" id="subscriptionPackage" required>
+                                    <option value="">-- اختر الباقة --</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="startDate" class="form-label">تاريخ البدء</label>
+                                <input type="date" class="form-control" id="startDate" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="endDate" class="form-label">تاريخ الانتهاء</label>
+                                <input type="date" class="form-control" id="endDate" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="hasSnacks">
+                                <label class="form-check-label" for="hasSnacks">
+                                    هذا الاشتراك يشمل سناكس
+                                </label>
+                            </div>
+                        </div>
+                        <div class="alert alert-info">
+                            <strong>ملاحظة:</strong> جميع الباقات مدتها 52 يوم. سيتم حساب الوجبات والسناكس المتبقية تلقائياً.
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="button" class="btn btn-primary" onclick="addSubscription()">إضافة الاشتراك</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Subscription Modal -->
+    <div class="modal fade" id="editSubscriptionModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">تعديل الاشتراك</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editSubscriptionForm">
+                        <input type="hidden" id="editSubscriptionId">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="editSubscriptionCustomer" class="form-label">العميل</label>
+                                <input type="text" class="form-control" id="editSubscriptionCustomer" readonly>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="editSubscriptionPackage" class="form-label">الباقة</label>
+                                <input type="text" class="form-control" id="editSubscriptionPackage" readonly>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="editStartDate" class="form-label">تاريخ البدء</label>
+                                <input type="date" class="form-control" id="editStartDate" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="editEndDate" class="form-label">تاريخ الانتهاء</label>
+                                <input type="date" class="form-control" id="editEndDate" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="editHasSnacks">
+                                <label class="form-check-label" for="editHasSnacks">
+                                    هذا الاشتراك يشمل سناكس
+                                </label>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editStatus" class="form-label">الحالة</label>
+                            <select class="form-select" id="editStatus">
+                                <option value="نشط">نشط</option>
+                                <option value="معلق">معلق</option>
+                                <option value="منتهي">منتهي</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="button" class="btn btn-primary" onclick="updateSubscription()">حفظ التغييرات</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Check authentication
+        if (localStorage.getItem('isLoggedIn') !== 'true') {
+            window.location.href = 'login.html';
+        }
+
+        // Helper functions
+        const RIYADH_TZ = 'Asia/Riyadh';
+        function nowInRiyadh() { return new Date(new Date().toLocaleString('en-US', { timeZone: RIYADH_TZ })); }
+        function addDaysRiyadh(yyyy_mm_dd, days) {
+            const [y, m, d] = yyyy_mm_dd.split('-').map(Number);
+            const base = new Date(`${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}T00:00:00+03:00`);
+            base.setDate(base.getDate() + days);
+            return base.toISOString().slice(0, 10);
+        }
+        function assert(condition, msg) { if (!condition) { throw new Error(msg); } }
+
+        // Subscription Management
+        class SubscriptionManager {
+            constructor() {
+                this.loadSubscriptions();
+                this.loadCustomersAndPackages();
+                this.setupEventListeners();
+            }
+
+            setLoading(isLoading) {
+                const tbody = document.getElementById('subscriptionsTableBody');
+                if (isLoading) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4"><div class="spinner-border"></div></td></tr>';
+                }
+            }
+
+            async loadSubscriptions() {
+                this.setLoading(true);
+                const tbody = document.getElementById('subscriptionsTableBody');
+                try {
+                    const [subscriptions, customers, packages] = await Promise.all([
+                        window.firebaseDB_instance.getSubscriptions(),
+                        window.firebaseDB_instance.getCustomers(),
+                        window.firebaseDB_instance.getPackages()
+                    ]);
+
+                    const cMap = new Map(customers.map(c => [c.id, c]));
+                    const pMap = new Map(packages.map(p => [p.id, p]));
+
+                    tbody.innerHTML = '';
+                    if (!subscriptions.length) {
+                        tbody.innerHTML = '<tr><td colspan="8" class="text-center">لا يوجد اشتراكات</td></tr>';
+                        return;
+                    }
+
+                    // Sort by startDate desc then customer name
+                    subscriptions.sort((a, b) => {
+                        const t = (b.startDate || '').localeCompare(a.startDate || '');
+                        if (t !== 0) return t;
+                        const an = (cMap.get(a.customerId)?.name || '').localeCompare(cMap.get(b.customerId)?.name || '');
+                        return an;
+                    });
+
+                    subscriptions.forEach(sub => {
+                        const customer = cMap.get(sub.customerId);
+                        const pkg = pMap.get(sub.packageId);
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${sub.startDate || '-'}</td>
+                            <td>${sub.endDate || '-'}</td>
+                            <td>${customer ? customer.name : 'عميل غير معروف'}</td>
+                            <td>${pkg ? pkg.name : 'باقة غير معروفة'}</td>
+                            <td>${Number(sub.remainingMeals ?? 0)}</td>
+                            <td>${Number(sub.remainingSnacks ?? 0)}</td>
+                            <td><span class="badge ${this.getStatusBadgeClass(sub.status)}">${sub.status || '-'}</span></td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary me-1" onclick="editSubscription('${sub.id}')">تعديل</button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteSubscription('${sub.id}')">حذف</button>
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                } catch (e) {
+                    console.error(e);
+                    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">تعذّر تحميل الاشتراكات</td></tr>';
+                }
+            }
+
+            async loadCustomersAndPackages() {
+                // Customers
+                const customerSelect = document.getElementById('subscriptionCustomer');
+                const customers = await window.firebaseDB_instance.getCustomers();
+                customers.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                customerSelect.innerHTML = '<option value="">-- اختر العميل --</option>';
+                customers.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.id;
+                    opt.textContent = `${c.name} - ${c.phone}`;
+                    customerSelect.appendChild(opt);
+                });
+
+                // Packages
+                const packageSelect = document.getElementById('subscriptionPackage');
+                const packages = await window.firebaseDB_instance.getPackages();
+                packages.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                packageSelect.innerHTML = '<option value="">-- اختر الباقة --</option>';
+                packages.forEach(p => {
+                    const price = (Number(p.price) || 0).toFixed(2);
+                    const meals = Number(p.meals) || 0;
+                    const opt = document.createElement('option');
+                    opt.value = p.id;
+                    opt.textContent = `${p.name} - ${price} ريال (${meals} وجبة)`;
+                    packageSelect.appendChild(opt);
+                });
+            }
+
+            getStatusBadgeClass(status) {
+                switch (status) {
+                    case 'نشط': return 'bg-success';
+                    case 'منتهي': return 'bg-danger';
+                    case 'معلق': return 'bg-warning';
+                    default: return 'bg-secondary';
+                }
+            }
+
+            setupEventListeners() {
+                // Default today + 52
+                const startEl = document.getElementById('startDate');
+                const endEl = document.getElementById('endDate');
+                const today = nowInRiyadh().toISOString().slice(0, 10);
+                startEl.value = today;
+                endEl.value = addDaysRiyadh(today, 52);
+
+                startEl.addEventListener('change', function () {
+                    if (this.value) {
+                        endEl.value = addDaysRiyadh(this.value, 52);
+                    }
+                });
+            }
+        }
+
+        // Global functions
+        async function addSubscription() {
+            const btn = document.querySelector('#addSubscriptionModal .btn.btn-primary');
+            btn.disabled = true;
+            try {
+                const customerId = document.getElementById('subscriptionCustomer').value;
+                const packageId = document.getElementById('subscriptionPackage').value;
+                const startDate = document.getElementById('startDate').value;
+                const endDate = document.getElementById('endDate').value;
+                const hasSnacks = document.getElementById('hasSnacks').checked;
+
+                if (!customerId) throw new Error('يرجى اختيار العميل');
+                if (!packageId) throw new Error('يرجى اختيار الباقة');
+                if (!startDate || !endDate) throw new Error('يرجى اختيار تاريخ البدء والانتهاء');
+                assert(startDate <= endDate, 'تاريخ الانتهاء يجب أن يكون بعد تاريخ البدء');
+
+                const existing = await window.firebaseDB_instance.getActiveSubscriptionByCustomerId(customerId);
+                if (existing) throw new Error('العميل لديه اشتراك نشط بالفعل');
+
+                const pkg = await window.firebaseDB_instance.getPackageById(packageId);
+                const remainingMeals = Number(pkg?.meals || 0);
+                const remainingSnacks = hasSnacks ? Math.round(remainingMeals / 2) : 0;
+
+                const sub = await window.firebaseDB_instance.createSubscription({
+                    customerId, packageId, startDate, endDate,
+                    hasSnacks, remainingMeals, remainingSnacks,
+                    status: 'نشط'
+                });
+
+                if (sub) {
+                    const customer = await window.firebaseDB_instance.getCustomerById(customerId);
+                    await window.firebaseDB_instance.logActivity({
+                        type: 'إضافة اشتراك',
+                        customerId,
+                        description: `تم إضافة اشتراك ${pkg.name} للعميل ${customer?.name || ''}`
+                    });
+                    bootstrap.Modal.getInstance(document.getElementById('addSubscriptionModal')).hide();
+                    document.getElementById('addSubscriptionForm').reset();
+                    subscriptionManager.loadSubscriptions();
+                    alert('تم إضافة الاشتراك بنجاح');
+                }
+            } catch (e) {
+                alert(e.message || 'حدث خطأ أثناء إضافة الاشتراك');
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function editSubscription(id) {
+            const subscriptions = await window.firebaseDB_instance.getSubscriptions();
+            const subscription = subscriptions.find(s => s.id === id);
+            if (!subscription) return;
+
+            const customer = await window.firebaseDB_instance.getCustomerById(subscription.customerId);
+            const packageData = await window.firebaseDB_instance.getPackageById(subscription.packageId);
+
+            document.getElementById('editSubscriptionId').value = id;
+            document.getElementById('editSubscriptionCustomer').value = customer ? customer.name : 'عميل غير معروف';
+            document.getElementById('editSubscriptionPackage').value = packageData ? packageData.name : 'باقة غير معروفة';
+            document.getElementById('editStartDate').value = subscription.startDate;
+            document.getElementById('editEndDate').value = subscription.endDate;
+            document.getElementById('editHasSnacks').checked = subscription.hasSnacks;
+            
+            const statusEl = document.getElementById('editStatus');
+            if (statusEl) statusEl.value = subscription.status || 'نشط';
+
+            new bootstrap.Modal(document.getElementById('editSubscriptionModal')).show();
+        }
+
+        async function updateSubscription() {
+            const btn = document.querySelector('#editSubscriptionModal .btn.btn-primary');
+            btn.disabled = true;
+            try {
+                const id = document.getElementById('editSubscriptionId').value;
+                const startDate = document.getElementById('editStartDate').value;
+                const endDate = document.getElementById('editEndDate').value;
+                const hasSnacks = document.getElementById('editHasSnacks').checked;
+                const statusEl = document.getElementById('editStatus'); // optional
+                const status = statusEl ? statusEl.value : undefined;
+
+                if (!startDate || !endDate) throw new Error('يرجى اختيار تاريخ البدء والانتهاء');
+                assert(startDate <= endDate, 'تاريخ الانتهاء يجب أن يكون بعد تاريخ البدء');
+
+                const fields = { startDate, endDate, hasSnacks };
+                if (status) fields.status = status;
+
+                await window.firebaseDB_instance.updateSubscription(id, fields);
+
+                const subs = await window.firebaseDB_instance.getSubscriptions();
+                const updated = subs.find(s => s.id === id);
+                const customer = await window.firebaseDB_instance.getCustomerById(updated.customerId);
+
+                await window.firebaseDB_instance.logActivity({
+                    type: 'تعديل اشتراك',
+                    customerId: updated.customerId,
+                    description: `تم تعديل اشتراك العميل ${customer?.name || ''}`
+                });
+
+                bootstrap.Modal.getInstance(document.getElementById('editSubscriptionModal')).hide();
+                subscriptionManager.loadSubscriptions();
+                alert('تم تحديث الاشتراك بنجاح');
+            } catch (e) {
+                alert(e.message || 'حدث خطأ أثناء تحديث الاشتراك');
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function deleteSubscription(id) {
+            const subs = await window.firebaseDB_instance.getSubscriptions();
+            const sub = subs.find(s => s.id === id);
+            if (!sub) return;
+
+            const customer = await window.firebaseDB_instance.getCustomerById(sub.customerId);
+
+            // Prevent deleting if there are daily registrations within the subscription window
+            const allRegs = await window.firebaseDB_instance.getDailyRegistrations(1000);
+            const hasRegs = allRegs.some(r => r.customerId === sub.customerId && r.date >= sub.startDate && r.date <= sub.endDate);
+            if (hasRegs) {
+                alert('لا يمكن حذف الاشتراك لوجود تسجيلات يومية ضمن فترة الاشتراك. احذف التسجيلات أولاً أو أنهِ الاشتراك.');
+                return;
+            }
+
+            if (!confirm(`هل أنت متأكد من حذف اشتراك العميل ${customer ? customer.name : 'غير معروف'}؟`)) return;
+
+            await window.firebaseDB_instance.logActivity({
+                type: 'حذف اشتراك',
+                customerId: sub.customerId,
+                description: `تم حذف اشتراك العميل ${customer ? customer.name : 'غير معروف'}`
+            });
+
+            await window.firebaseDB_instance.deleteSubscription(id);
+            subscriptionManager.loadSubscriptions();
+            alert('تم حذف الاشتراك بنجاح');
+        }
+
+        // Initialize subscription manager
+        let subscriptionManager;
+        document.addEventListener('DOMContentLoaded', function() {
+            subscriptionManager = new SubscriptionManager();
+        });
+
+        // Logout function
+        function logout() {
+            if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
+                localStorage.removeItem('isLoggedIn');
+                localStorage.removeItem('username');
+                window.location.href = 'login.html';
+            }
+        }
+    </script>
+    
+    <!-- Firebase SDK -->
+    <script type="module" src="firebase-config.js"></script>
+    <script type="module" src="online-database.js"></script>
+</body>
+</html>
