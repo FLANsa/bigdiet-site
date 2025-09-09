@@ -184,8 +184,14 @@
                 this.setupEventListeners();
             }
 
-            loadCustomers() {
-                const customers = db.getCustomers();
+            async loadCustomers() {
+                // Use Firebase if available, otherwise use localStorage
+                let customers;
+                if (window.firebaseDB_instance && window.firebaseDB_instance.isOnline) {
+                    customers = await window.firebaseDB_instance.getCustomers();
+                } else {
+                    customers = db.getCustomers();
+                }
                 const tbody = document.getElementById('customersTableBody');
                 tbody.innerHTML = '';
 
@@ -237,7 +243,7 @@
         }
 
         // Global functions
-        function addCustomer() {
+        async function addCustomer() {
             const name = document.getElementById('customerName').value.trim();
             const phone = document.getElementById('customerPhone').value.trim();
 
@@ -258,7 +264,13 @@
                 return;
             }
 
-            const customer = db.addCustomer({ name, phone });
+            // Use Firebase if available, otherwise use localStorage
+            let customer;
+            if (window.firebaseDB_instance && window.firebaseDB_instance.isOnline) {
+                customer = await window.firebaseDB_instance.addCustomer({ name, phone });
+            } else {
+                customer = db.addCustomer({ name, phone });
+            }
             
             // Add activity
             db.addActivity({
@@ -359,6 +371,10 @@
             }
         }
     </script>
+    
+    <!-- Firebase SDK -->
+    <script type="module" src="firebase-config.js"></script>
+    <script src="online-database.js"></script>
 </body>
 </html>
 
