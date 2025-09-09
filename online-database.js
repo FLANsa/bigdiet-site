@@ -38,12 +38,11 @@ function validatePhoneNumber(phone) { return /^\d{10}$/.test(phone); }
 const RULES = {
   PACKAGE_DURATION_DAYS: 52,
   /**
-   * Snacks rule: half the meals, rounded to nearest int if hasSnacks.
+   * Snacks rule: always 26 snacks by default if hasSnacks is true.
    * Adjust here once and the entire app stays consistent.
    */
   snacksForPackage(meals, hasSnacks) {
-    const m = Number(meals || 0);
-    return hasSnacks ? Math.round(m / 2) : 0;
+    return hasSnacks ? 26 : 0;
   }
 };
 

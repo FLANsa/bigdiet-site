@@ -386,7 +386,7 @@
 
                 const pkg = await window.firebaseDB_instance.getPackageById(packageId);
                 const remainingMeals = Number(pkg?.meals || 0);
-                const remainingSnacks = hasSnacks ? Math.round(remainingMeals / 2) : 0;
+                const remainingSnacks = hasSnacks ? 26 : 0;
 
                 const sub = await window.firebaseDB_instance.createSubscription({
                     customerId, packageId, startDate, endDate,
