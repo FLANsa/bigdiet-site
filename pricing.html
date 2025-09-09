@@ -57,6 +57,40 @@
                     </div>
                 </div>
 
+                <!-- Date Filter -->
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">فلترة الإيرادات حسب التاريخ</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <label for="startDate" class="form-label">من تاريخ</label>
+                                        <input type="date" class="form-control" id="startDate">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="endDate" class="form-label">إلى تاريخ</label>
+                                        <input type="date" class="form-control" id="endDate">
+                                    </div>
+                                    <div class="col-md-4 d-flex align-items-end">
+                                        <div class="d-flex gap-2">
+                                            <button class="btn btn-primary" onclick="applyDateFilter()">تطبيق الفلتر</button>
+                                            <button class="btn btn-outline-secondary" onclick="clearDateFilter()">إزالة الفلتر</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mt-2">
+                                    <small class="text-muted">
+                                        <strong>ملاحظة:</strong> سيتم حساب الإيرادات فقط من الاشتراكات التي تم إنشاؤها في الفترة المحددة
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Revenue Summary -->
                 <div class="row mt-4">
                     <div class="col-12">
@@ -199,10 +233,36 @@
                     // Create package map for quick lookup
                     const packageMap = new Map(this.packages.map(pkg => [pkg.id, pkg]));
                     
+                    // Get date filter values
+                    const startDate = document.getElementById('startDate').value;
+                    const endDate = document.getElementById('endDate').value;
+                    
+                    let filteredSubscriptions = subscriptions;
+                    
+                    // Apply date filter if dates are selected
+                    if (startDate || endDate) {
+                        filteredSubscriptions = subscriptions.filter(sub => {
+                            const subscriptionDate = sub.startDate || sub.createdAt || '';
+                            
+                            // If subscription has no date, skip it when filtering
+                            if (!subscriptionDate) return false;
+                            
+                            const subDate = new Date(subscriptionDate);
+                            const start = startDate ? new Date(startDate) : null;
+                            const end = endDate ? new Date(endDate) : null;
+                            
+                            // Check if subscription date is within range
+                            if (start && subDate < start) return false;
+                            if (end && subDate > end) return false;
+                            
+                            return true;
+                        });
+                    }
+                    
                     let totalRevenue = 0;
                     let activeSubscriptions = 0;
                     
-                    subscriptions.forEach(sub => {
+                    filteredSubscriptions.forEach(sub => {
                         const pkg = packageMap.get(sub.packageId);
                         if (pkg) {
                             const basePrice = Number(pkg.price) || 0;
@@ -217,7 +277,7 @@
                         }
                     });
                     
-                    const totalSubscriptions = subscriptions.length;
+                    const totalSubscriptions = filteredSubscriptions.length;
                     const averageRevenue = totalSubscriptions > 0 ? totalRevenue / totalSubscriptions : 0;
                     
                     // Update the display
@@ -242,6 +302,22 @@
 
         // Global function for refresh button
         function refreshRevenue() {
+            if (pricingManager) {
+                pricingManager.loadRevenueData();
+            }
+        }
+
+        // Global function for applying date filter
+        function applyDateFilter() {
+            if (pricingManager) {
+                pricingManager.loadRevenueData();
+            }
+        }
+
+        // Global function for clearing date filter
+        function clearDateFilter() {
+            document.getElementById('startDate').value = '';
+            document.getElementById('endDate').value = '';
             if (pricingManager) {
                 pricingManager.loadRevenueData();
             }
