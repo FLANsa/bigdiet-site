@@ -352,156 +352,205 @@
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        class CustomerPortal {
-            constructor() {
-                this.setupEventListeners();
-            }
+      // Utilities
+      const RIYADH_TZ = 'Asia/Riyadh';
 
-            setupEventListeners() {
-                document.getElementById('customerInquiryForm').addEventListener('submit', (e) => {
-                    e.preventDefault();
-                    this.searchCustomer();
-                });
+      // Normalize Arabic-Indic numerals to Western digits and strip non-digits
+      function normalizePhone(input) {
+        if (!input) return '';
+        const arabicIndicMap = {
+          '٠':'0','١':'1','٢':'2','٣':'3','٤':'4',
+          '٥':'5','٦':'6','٧':'7','٨':'8','٩':'9'
+        };
+        const converted = input.replace(/[٠-٩]/g, ch => arabicIndicMap[ch] || ch);
+        return converted.replace(/\D/g, '').slice(0, 10); // keep max 10 digits
+      }
 
-                // Phone number formatting
-                document.getElementById('phoneNumber').addEventListener('input', (e) => {
-                    let value = e.target.value.replace(/\D/g, '');
-                    if (value.length > 10) value = value.slice(0, 10);
-                    e.target.value = value;
-                });
-            }
+      // Now in Riyadh time (device-agnostic)
+      function nowInRiyadh() {
+        // Create a Date from a localized string forced to Asia/Riyadh
+        return new Date(new Date().toLocaleString('en-US', { timeZone: RIYADH_TZ }));
+      }
 
-            async searchCustomer() {
-                const phoneNumber = document.getElementById('phoneNumber').value.trim();
-                const errorMessage = document.getElementById('errorMessage');
-                const subscriptionDetails = document.getElementById('subscriptionDetails');
+      // Parse "YYYY-MM-DD" as midnight in Riyadh (+03:00 fixed, no DST)
+      function parseRiyadhDateYYYYMMDD(dateStr) {
+        if (!dateStr) return null;
+        // Asia/Riyadh is UTC+3 year-round
+        return new Date(dateStr + 'T00:00:00+03:00');
+      }
 
-                // Hide previous results
-                errorMessage.style.display = 'none';
-                subscriptionDetails.style.display = 'none';
+      // Days left between two dates in Riyadh (ceil; never negative)
+      function daysLeftRiyadh(endDateStr) {
+        const now = nowInRiyadh();
+        const end = parseRiyadhDateYYYYMMDD(endDateStr);
+        if (!end) return 0;
+        const msPerDay = 1000 * 60 * 60 * 24;
+        const diff = Math.ceil((end - now) / msPerDay);
+        return Math.max(0, diff);
+      }
 
-                // Validate phone number
-                if (!phoneNumber || phoneNumber.length !== 10) {
-                    this.showError('يرجى إدخال رقم هاتف صحيح مكون من 10 أرقام');
-                    return;
-                }
+      class CustomerPortal {
+        constructor() {
+          this.$form = document.getElementById('customerInquiryForm');
+          this.$phone = document.getElementById('phoneNumber');
+          this.$error = document.getElementById('errorMessage');
+          this.$errorText = document.getElementById('errorText');
+          this.$details = document.getElementById('subscriptionDetails');
+          this.$recentList = document.getElementById('recentVisitsList');
+          this.$submitBtn = this.$form.querySelector('button[type="submit"]');
+          this.originalBtnHTML = this.$submitBtn.innerHTML;
 
-                try {
-                    // Get customer from Firebase
-                    const customer = await window.firebaseDB_instance.getCustomerByPhone(phoneNumber);
-
-                    if (!customer) {
-                        this.showError('لم يتم العثور على عميل بهذا الرقم');
-                        return;
-                    }
-
-                    // Get customer's active subscription
-                    const subscription = await window.firebaseDB_instance.getActiveSubscriptionByCustomerId(customer.id);
-
-                    if (!subscription) {
-                        this.showError('لا يوجد اشتراك نشط لهذا العميل');
-                        return;
-                    }
-
-                    // Display subscription details
-                    await this.displaySubscriptionDetails(customer, subscription);
-                } catch (error) {
-                    console.error('Error searching customer:', error);
-                    this.showError('حدث خطأ أثناء البحث. يرجى المحاولة مرة أخرى.');
-                }
-            }
-
-            showError(message) {
-                const errorMessage = document.getElementById('errorMessage');
-                const errorText = document.getElementById('errorText');
-                errorText.textContent = message;
-                errorMessage.style.display = 'block';
-            }
-
-            async displaySubscriptionDetails(customer, subscription) {
-                // Get package data from Firebase
-                const packageData = await window.firebaseDB_instance.getPackageById(subscription.packageId);
-                
-                // Calculate days left
-                const today = new Date();
-                const endDate = new Date(subscription.endDate);
-                const daysLeft = Math.max(0, Math.ceil((endDate - today) / (1000 * 60 * 60 * 24)));
-
-                // Update display
-                document.getElementById('customerName').textContent = customer.name;
-                document.getElementById('packageName').textContent = packageData ? packageData.name : 'غير محدد';
-                document.getElementById('daysLeft').textContent = daysLeft;
-                document.getElementById('endDate').textContent = subscription.endDate;
-                document.getElementById('remainingMeals').textContent = subscription.remainingMeals;
-                document.getElementById('remainingSnacks').textContent = subscription.remainingSnacks;
-
-                // Load recent visits
-                await this.loadRecentVisits(customer.id);
-
-                // Show subscription details with animation
-                const subscriptionDetails = document.getElementById('subscriptionDetails');
-                subscriptionDetails.style.display = 'block';
-                subscriptionDetails.classList.add('fade-in');
-            }
-
-            async loadRecentVisits(customerId) {
-                // Get recent visits from Firebase
-                const allRegistrations = await window.firebaseDB_instance.getDailyRegistrations();
-                const recentVisits = allRegistrations
-                    .filter(reg => reg.customerId === customerId)
-                    .sort((a, b) => new Date(b.date + ' ' + b.time) - new Date(a.date + ' ' + a.time))
-                    .slice(0, 5);
-
-                const visitsList = document.getElementById('recentVisitsList');
-                
-                if (recentVisits.length === 0) {
-                    visitsList.innerHTML = '<div class="text-center text-muted py-4">لا توجد زيارات سابقة</div>';
-                    return;
-                }
-
-                visitsList.innerHTML = recentVisits.map(visit => {
-                    const description = this.formatVisitDescription(visit);
-                    return `
-                        <div class="visit-item">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <strong>${visit.date}</strong>
-                                    <div class="text-muted">${visit.time}</div>
-                                </div>
-                                <div class="text-end">
-                                    <div class="fw-semibold">${description}</div>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            }
-
-            formatVisitDescription(registration) {
-                let description = '';
-                
-                if (registration.meals > 0) {
-                    if (registration.meals === 1) description += 'وجبة واحدة';
-                    else if (registration.meals === 2) description += 'وجبتين';
-                    else description += `${registration.meals} وجبات`;
-                }
-                
-                if (registration.snacks > 0) {
-                    if (description) description += ' و ';
-                    if (registration.snacks === 1) description += 'سناك';
-                    else if (registration.snacks === 2) description += 'سناكين';
-                    else description += `${registration.snacks} سناكس`;
-                }
-
-                return description || 'لا توجد تفاصيل';
-            }
+          this.setupEventListeners();
         }
 
-        // Initialize customer portal
-        let customerPortal;
-        document.addEventListener('DOMContentLoaded', function() {
-            customerPortal = new CustomerPortal();
-        });
+        setupEventListeners() {
+          this.$form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.searchCustomer();
+          });
+
+          // Phone formatting: allow Arabic/Indic & Western digits; strip separators
+          this.$phone.addEventListener('input', (e) => {
+            const normalized = normalizePhone(e.target.value);
+            e.target.value = normalized;
+          });
+        }
+
+        setLoading(isLoading) {
+          if (isLoading) {
+            this.$submitBtn.disabled = true;
+            this.$submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>جاري البحث...';
+          } else {
+            this.$submitBtn.disabled = false;
+            this.$submitBtn.innerHTML = this.originalBtnHTML;
+          }
+        }
+
+        async searchCustomer() {
+          const raw = this.$phone.value.trim();
+          const phoneNumber = normalizePhone(raw);
+
+          // Hide previous results
+          this.$error.style.display = 'none';
+          this.$details.style.display = 'none';
+
+          // Validate phone number (must be exactly 10 digits)
+          if (!phoneNumber || phoneNumber.length !== 10) {
+            this.showError('يرجى إدخال رقم هاتف صحيح مكون من 10 أرقام');
+            return;
+          }
+
+          try {
+            this.setLoading(true);
+
+            // 1) Get customer from Firebase
+            const customer = await window.firebaseDB_instance.getCustomerByPhone(phoneNumber);
+            if (!customer) {
+              this.showError('لم يتم العثور على عميل بهذا الرقم');
+              return;
+            }
+
+            // 2) Get customer's active subscription
+            const subscription = await window.firebaseDB_instance.getActiveSubscriptionByCustomerId(customer.id);
+            if (!subscription) {
+              this.showError('لا يوجد اشتراك نشط لهذا العميل');
+              return;
+            }
+
+            // 3) Get package data
+            const packageData = await window.firebaseDB_instance.getPackageById(subscription.packageId);
+
+            // 4) Render details
+            await this.displaySubscriptionDetails(customer, subscription, packageData);
+          } catch (err) {
+            console.error('Error searching customer:', err);
+            this.showError('حدث خطأ أثناء البحث. يرجى المحاولة مرة أخرى.');
+          } finally {
+            this.setLoading(false);
+          }
+        }
+
+        showError(message) {
+          this.$errorText.textContent = message;
+          this.$error.style.display = 'block';
+        }
+
+        async displaySubscriptionDetails(customer, subscription, packageData) {
+          // Calculate days left using Riyadh time
+          const daysLeft = daysLeftRiyadh(subscription.endDate);
+
+          // Update display
+          document.getElementById('customerName').textContent = customer.name || '-';
+          document.getElementById('packageName').textContent = (packageData && packageData.name) ? packageData.name : 'غير محدد';
+          document.getElementById('daysLeft').textContent = daysLeft;
+          document.getElementById('endDate').textContent = subscription.endDate || '-';
+          document.getElementById('remainingMeals').textContent = subscription.remainingMeals ?? '-';
+          document.getElementById('remainingSnacks').textContent = subscription.remainingSnacks ?? '-';
+
+          // Load recent visits (limit to latest 5 for this customer)
+          await this.loadRecentVisits(customer.id);
+
+          // Show with animation
+          this.$details.style.display = 'block';
+          this.$details.classList.add('fade-in');
+        }
+
+        async loadRecentVisits(customerId) {
+          // Fetch all recent registrations, then filter by customer
+          // (If you later add firebaseDB_instance.listDailyRegistrationsByCustomer, switch to that for efficiency)
+          const all = await window.firebaseDB_instance.getDailyRegistrations();
+          const recent = all
+            .filter(reg => reg.customerId === customerId)
+            .sort((a, b) => new Date(b.date + ' ' + (b.time || '00:00')) - new Date(a.date + ' ' + (a.time || '00:00')))
+            .slice(0, 5);
+
+          if (!recent.length) {
+            this.$recentList.innerHTML = '<div class="text-center text-muted py-4">لا توجد زيارات سابقة</div>';
+            return;
+          }
+
+          this.$recentList.innerHTML = recent.map(visit => {
+            const desc = this.formatVisitDescription(visit);
+            return `
+              <div class="visit-item">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <strong>${visit.date || '-'}</strong>
+                    <div class="text-muted">${visit.time || '-'}</div>
+                  </div>
+                  <div class="text-end">
+                    <div class="fw-semibold">${desc}</div>
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('');
+        }
+
+        formatVisitDescription(reg) {
+          let parts = [];
+          const meals = Number(reg.meals || 0);
+          const snacks = Number(reg.snacks || 0);
+
+          if (meals > 0) {
+            if (meals === 1) parts.push('وجبة واحدة');
+            else if (meals === 2) parts.push('وجبتين');
+            else parts.push(`${meals} وجبات`);
+          }
+          if (snacks > 0) {
+            if (snacks === 1) parts.push('سناك');
+            else if (snacks === 2) parts.push('سناكين');
+            else parts.push(`${snacks} سناكس`);
+          }
+          return parts.join(' و ') || 'لا توجد تفاصيل';
+        }
+      }
+
+      // Initialize customer portal
+      let customerPortal;
+      document.addEventListener('DOMContentLoaded', function() {
+        customerPortal = new CustomerPortal();
+      });
     </script>
     
     <!-- Firebase SDK -->
