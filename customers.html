@@ -83,10 +83,7 @@
     <div class="container mt-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1>إدارة العملاء</h1>
-            <div>
-                <button class="btn btn-secondary me-2" onclick="testFirebaseConnection()">اختبار الاتصال</button>
-                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCustomerModal">إضافة عميل</button>
-            </div>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCustomerModal">إضافة عميل</button>
         </div>
 
         <!-- Customers Table -->
@@ -407,27 +404,6 @@
           alert('تعذّر تحميل البيانات. يرجى تحديث الصفحة.\nError: ' + e.message);
         }
       });
-
-      // Test Firebase connection
-      async function testFirebaseConnection() {
-        try {
-          console.log('Testing Firebase connection...');
-          const F = window.firebaseDB_instance;
-          if (!F) {
-            alert('Firebase instance not available');
-            return;
-          }
-          
-          console.log('Firebase instance:', F);
-          console.log('Testing getCustomers...');
-          const customers = await F.getCustomers();
-          console.log('Customers result:', customers);
-          alert('Firebase connection successful!\nFound ' + (customers ? customers.length : 0) + ' customers');
-        } catch (error) {
-          console.error('Firebase test error:', error);
-          alert('Firebase connection failed: ' + error.message);
-        }
-      }
 
       // Logout
       function logout() {
