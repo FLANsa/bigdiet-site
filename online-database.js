@@ -4,9 +4,7 @@
 class FirebaseDatabase {
     constructor() {
         this.db = null;
-        this.auth = null;
         this.isOnline = false;
-        this.isAdmin = false;
         this.init();
     }
 
@@ -15,15 +13,8 @@ class FirebaseDatabase {
             // Wait for Firebase to be loaded
             if (window.firebaseDB) {
                 this.db = window.firebaseDB.db;
-                this.auth = window.firebaseDB.auth;
                 this.isOnline = true;
-                console.log('Firebase database connected');
-                
-                // Listen for auth state changes
-                window.firebaseDB.onAuthStateChanged(this.auth, (user) => {
-                    this.isAdmin = !!user;
-                    console.log('Auth state changed:', user ? 'Admin logged in' : 'Not admin');
-                });
+                console.log('Firebase database connected (Data Storage Only)');
             } else {
                 console.log('Firebase not loaded, using offline mode');
                 this.isOnline = false;
@@ -432,34 +423,7 @@ class FirebaseDatabase {
         localStorage.setItem('bigDaitDB', JSON.stringify(data));
     }
 
-    // Authentication Methods
-    async signInAdmin(email, password) {
-        try {
-            const userCredential = await window.firebaseDB.signInWithEmailAndPassword(
-                this.auth, email, password
-            );
-            this.isAdmin = true;
-            return { success: true, user: userCredential.user };
-        } catch (error) {
-            console.error('Error signing in admin:', error);
-            return { success: false, error: error.message };
-        }
-    }
-
-    async signOutAdmin() {
-        try {
-            await window.firebaseDB.signOut(this.auth);
-            this.isAdmin = false;
-            return { success: true };
-        } catch (error) {
-            console.error('Error signing out admin:', error);
-            return { success: false, error: error.message };
-        }
-    }
-
-    isAdminLoggedIn() {
-        return this.isAdmin;
-    }
+    // No authentication methods needed - using localStorage login
 }
 
 // Initialize Firebase database

@@ -46,8 +46,8 @@
         
         <form id="loginForm">
             <div class="mb-3">
-                <label for="email" class="form-label">البريد الإلكتروني</label>
-                <input type="email" class="form-control" id="email" required>
+                <label for="username" class="form-label">اسم المستخدم</label>
+                <input type="text" class="form-control" id="username" required>
             </div>
             <div class="mb-3">
                 <label for="password" class="form-label">كلمة المرور</label>
@@ -71,40 +71,26 @@
     <script src="database.js"></script>
     <script>
         // Simple login system (in real app, this would connect to backend)
-        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
-            const email = document.getElementById('email').value;
+            const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
             const errorDiv = document.getElementById('loginError');
             
             // Hide previous errors
             errorDiv.style.display = 'none';
             
-            try {
-                // Try Firebase authentication first
-                if (window.firebaseDB_instance && window.firebaseDB_instance.isOnline) {
-                    const result = await window.firebaseDB_instance.signInAdmin(email, password);
-                    if (result.success) {
-                        // Redirect to dashboard
-                        window.location.href = 'dashboard.html';
-                        return;
-                    } else {
-                        throw new Error(result.error);
-                    }
-                } else {
-                    // Fallback to simple validation if Firebase is not available
-                    if (email === 'admin@bigdiet.com' && password === 'admin123') {
-                        localStorage.setItem('isLoggedIn', 'true');
-                        localStorage.setItem('username', 'admin');
-                        window.location.href = 'dashboard.html';
-                        return;
-                    } else {
-                        throw new Error('البريد الإلكتروني أو كلمة المرور غير صحيحة');
-                    }
-                }
-            } catch (error) {
-                errorDiv.textContent = error.message;
+            // Simple username/password validation
+            if (username === 'admin' && password === 'admin123') {
+                // Store login status
+                localStorage.setItem('isLoggedIn', 'true');
+                localStorage.setItem('username', username);
+                
+                // Redirect to dashboard
+                window.location.href = 'dashboard.html';
+            } else {
+                errorDiv.textContent = 'اسم المستخدم أو كلمة المرور غير صحيحة';
                 errorDiv.style.display = 'block';
             }
         });
