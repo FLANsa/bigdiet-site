@@ -120,54 +120,6 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-6">
-                        <div class="card">
-                            <div class="card-header">
-                                <h5 class="mb-0">حاسبة السعر</h5>
-                            </div>
-                            <div class="card-body">
-                                <form id="priceCalculator">
-                                    <div class="mb-3">
-                                        <label for="selectedPackage" class="form-label">اختر الباقة</label>
-                                        <select class="form-select" id="selectedPackage" required>
-                                            <option value="">-- اختر الباقة --</option>
-                                        </select>
-                                    </div>
-                                    <div class="mb-3">
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" id="includeSnacks">
-                                            <label class="form-check-label" for="includeSnacks">
-                                                يشمل السناكس (+150 ريال)
-                                            </label>
-                                        </div>
-                                    </div>
-                                    <div class="mb-3">
-                                        <button type="submit" class="btn btn-primary">حساب السعر</button>
-                                    </div>
-                                </form>
-                                <div id="priceResult" class="alert alert-success" style="display: none;">
-                                    <div class="row">
-                                        <div class="col-12">
-                                            <h5 class="mb-3">تفاصيل السعر:</h5>
-                                            <div class="d-flex justify-content-between mb-2">
-                                                <span>سعر الباقة:</span>
-                                                <span id="basePrice">0.00</span> ريال
-                                            </div>
-                                            <div class="d-flex justify-content-between mb-2" id="snacksRow" style="display: none;">
-                                                <span>السناكس:</span>
-                                                <span>+150.00</span> ريال
-                                            </div>
-                                            <hr>
-                                            <div class="d-flex justify-content-between">
-                                                <strong>السعر النهائي:</strong>
-                                                <strong><span id="finalPrice">0.00</span> ريال</strong>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -186,24 +138,7 @@
             }
 
             setupEventListeners() {
-                document.getElementById('priceCalculator').addEventListener('submit', (e) => {
-                    e.preventDefault();
-                    this.calculatePrice();
-                });
-
-                // Auto-calculate when package selection changes
-                document.getElementById('selectedPackage').addEventListener('change', () => {
-                    if (document.getElementById('selectedPackage').value) {
-                        this.calculatePrice();
-                    }
-                });
-
-                // Auto-calculate when snacks checkbox changes
-                document.getElementById('includeSnacks').addEventListener('change', () => {
-                    if (document.getElementById('selectedPackage').value) {
-                        this.calculatePrice();
-                    }
-                });
+                // No event listeners needed for price calculator (removed)
             }
 
             async loadPackages() {
@@ -215,7 +150,6 @@
 
                     this.packages = await F.getPackages();
                     this.renderPackages();
-                    this.populatePackageSelector();
                     this.loadRevenueData();
                 } catch (error) {
                     console.error('Error loading packages:', error);
@@ -251,51 +185,6 @@
                 });
             }
 
-            populatePackageSelector() {
-                const select = document.getElementById('selectedPackage');
-                select.innerHTML = '<option value="">-- اختر الباقة --</option>';
-                
-                this.packages.forEach(pkg => {
-                    const option = document.createElement('option');
-                    option.value = pkg.id;
-                    option.textContent = `${pkg.name} - ${(Number(pkg.price) || 0).toFixed(2)} ريال`;
-                    select.appendChild(option);
-                });
-            }
-
-            calculatePrice() {
-                const packageId = document.getElementById('selectedPackage').value;
-                const includeSnacks = document.getElementById('includeSnacks').checked;
-                
-                if (!packageId) {
-                    alert('يرجى اختيار الباقة');
-                    return;
-                }
-
-                const pkg = this.packages.find(p => p.id === packageId);
-                if (!pkg) {
-                    alert('الباقة المختارة غير موجودة');
-                    return;
-                }
-
-                const basePrice = Number(pkg.price) || 0;
-                const snacksPrice = includeSnacks ? 150 : 0;
-                const finalPrice = basePrice + snacksPrice;
-
-                // Update the display with breakdown
-                document.getElementById('basePrice').textContent = basePrice.toFixed(2);
-                document.getElementById('finalPrice').textContent = finalPrice.toFixed(2);
-                
-                // Show/hide snacks row based on selection
-                const snacksRow = document.getElementById('snacksRow');
-                if (includeSnacks) {
-                    snacksRow.style.display = 'flex';
-                } else {
-                    snacksRow.style.display = 'none';
-                }
-                
-                document.getElementById('priceResult').style.display = 'block';
-            }
 
             async loadRevenueData() {
                 try {
