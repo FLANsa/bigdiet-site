@@ -258,7 +258,12 @@
             }
 
             // Check if phone already exists
-            const existingCustomer = db.getCustomers().find(c => c.phone === phone);
+            let existingCustomer;
+            if (window.firebaseDB_instance && window.firebaseDB_instance.isOnline) {
+                existingCustomer = await window.firebaseDB_instance.getCustomerByPhone(phone);
+            } else {
+                existingCustomer = db.getCustomers().find(c => c.phone === phone);
+            }
             if (existingCustomer) {
                 alert('رقم الهاتف مسجل مسبقاً');
                 return;

@@ -206,8 +206,14 @@
                 this.loadPackages();
             }
 
-            loadPackages() {
-                const packages = db.getPackages();
+            async loadPackages() {
+                // Use Firebase if available, otherwise use localStorage
+                let packages;
+                if (window.firebaseDB_instance && window.firebaseDB_instance.isOnline) {
+                    packages = await window.firebaseDB_instance.getPackages();
+                } else {
+                    packages = db.getPackages();
+                }
                 const tbody = document.getElementById('packagesTableBody');
                 tbody.innerHTML = '';
 
@@ -245,7 +251,7 @@
         }
 
         // Global functions
-        function addPackage() {
+        async function addPackage() {
             const name = document.getElementById('packageName').value.trim();
             const price = parseFloat(document.getElementById('packagePrice').value);
             const meals = parseInt(document.getElementById('packageMeals').value);
@@ -273,12 +279,23 @@
                 return;
             }
 
-            const packageData = db.addPackage({
-                name,
-                price,
-                meals,
-                description
-            });
+            // Use Firebase if available, otherwise use localStorage
+            let packageData;
+            if (window.firebaseDB_instance && window.firebaseDB_instance.isOnline) {
+                packageData = await window.firebaseDB_instance.addPackage({
+                    name,
+                    price,
+                    meals,
+                    description
+                });
+            } else {
+                packageData = db.addPackage({
+                    name,
+                    price,
+                    meals,
+                    description
+                });
+            }
 
             if (packageData) {
                 // Add activity
