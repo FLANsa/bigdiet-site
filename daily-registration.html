@@ -96,7 +96,7 @@
                         <form id="registrationForm">
                             <div class="mb-3">
                                 <label for="customerSearch" class="form-label">البحث عن العميل</label>
-                                <input type="text" class="form-control" id="customerSearch" placeholder="أدخل اسم العميل أو رقم الهاتف">
+                                <input type="text" class="form-control" id="customerSearch" inputmode="numeric" placeholder="أدخل اسم العميل أو رقم الهاتف">
                                 <div id="searchResults" class="mt-2"></div>
                             </div>
                             <div class="mb-3" id="selectedCustomerInfo" style="display: none;">
@@ -213,6 +213,9 @@
         return window.firebaseDB_instance;
       }
 
+      // Debounce utility for search
+      function debounce(fn, ms=200){ let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), ms); }; }
+
       // -------- Daily Registration Manager --------
       class DailyRegistrationManager {
         constructor() {
@@ -229,6 +232,8 @@
           this.$todayTbody = document.getElementById('todayRegistrationsTableBody');
           this.$recentSection = document.getElementById('recentVisitsSection');
           this.$recentList = document.getElementById('recentVisitsList');
+          this.$submitBtn = document.querySelector('#registrationForm button[type="submit"]');
+          this._submitting = false;
 
           this.init();
         }
@@ -245,10 +250,10 @@
         }
 
         setupEventListeners() {
-          // Normalize query as user types (Arabic-Indic digits supported)
-          this.$search.addEventListener('input', async (e) => {
+          // Normalize query as user types (Arabic-Indic digits supported) - debounced
+          this.$search.addEventListener('input', debounce(async (e) => {
             await this.searchCustomers(e.target.value);
-          });
+          }, 250));
 
           // Form submission
           document.getElementById('registrationForm').addEventListener('submit', async (e) => {
@@ -323,6 +328,8 @@
           this.$snackSelect.innerHTML = '<option value="">-- اختر عدد السناكس --</option>';
 
           if (!subscription) {
+            this.$mealSelect.disabled = true;
+            this.$snackSelect.disabled = true;
             this.$mealSelect.innerHTML += '<option value="0" disabled>لا يوجد اشتراك نشط</option>';
             this.$snackSelect.innerHTML += '<option value="0" disabled>لا يوجد اشتراك نشط</option>';
             return;
@@ -330,6 +337,9 @@
 
           const remMeals = Number(subscription.remainingMeals || 0);
           const remSnacks = Number(subscription.remainingSnacks || 0);
+
+          this.$mealSelect.disabled = remMeals === 0;
+          this.$snackSelect.disabled = remSnacks === 0;
 
           for (let i = 1; i <= remMeals; i++) {
             const opt = document.createElement('option');
@@ -347,28 +357,34 @@
         }
 
         async submitRegistration() {
-          const F = window.firebaseDB_instance;
-
-          if (!this.selectedCustomer) {
-            alert('يرجى اختيار العميل أولاً');
-            return;
-          }
-
-          const meals = parseInt(this.$mealSelect.value) || 0;
-          const snacks = parseInt(this.$snackSelect.value) || 0;
-
-          if (meals === 0 && snacks === 0) {
-            alert('يرجى اختيار وجبة أو سناك واحد على الأقل');
-            return;
-          }
-
-          const sub = await F.getActiveSubscriptionByCustomerId(this.selectedCustomer.id);
-          if (!sub) { alert('العميل لا يملك اشتراك نشط'); return; }
-
-          if (meals > (sub.remainingMeals || 0))   { alert('عدد الوجبات المطلوبة أكبر من المتبقي'); return; }
-          if (snacks > (sub.remainingSnacks || 0)) { alert('عدد السناكس المطلوبة أكبر من المتبقي'); return; }
+          if (this._submitting) return;
+          this._submitting = true;
+          const origHTML = this.$submitBtn.innerHTML;
+          this.$submitBtn.disabled = true;
+          this.$submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>جاري الحفظ...';
 
           try {
+            const F = window.firebaseDB_instance;
+
+            if (!this.selectedCustomer) {
+              alert('يرجى اختيار العميل أولاً');
+              return;
+            }
+
+            const meals = parseInt(this.$mealSelect.value) || 0;
+            const snacks = parseInt(this.$snackSelect.value) || 0;
+
+            if (meals === 0 && snacks === 0) {
+              alert('يرجى اختيار وجبة أو سناك واحد على الأقل');
+              return;
+            }
+
+            const sub = await F.getActiveSubscriptionByCustomerId(this.selectedCustomer.id);
+            if (!sub) { alert('العميل لا يملك اشتراك نشط'); return; }
+
+            if (meals > (sub.remainingMeals || 0))   { alert('عدد الوجبات المطلوبة أكبر من المتبقي'); return; }
+            if (snacks > (sub.remainingSnacks || 0)) { alert('عدد السناكس المطلوبة أكبر من المتبقي'); return; }
+
             await F.addDailyRegistration({
               customerId: this.selectedCustomer.id,
               meals,
@@ -380,6 +396,10 @@
           } catch (e) {
             console.error(e);
             alert('تعذّر حفظ التسجيل. حاول مجددًا.');
+          } finally {
+            this._submitting = false;
+            this.$submitBtn.disabled = false;
+            this.$submitBtn.innerHTML = origHTML;
           }
         }
 
@@ -512,6 +532,11 @@
           console.error(e);
           alert('تعذّر تحميل الصفحة. يرجى إعادة المحاولة.');
         }
+      });
+
+      // Offline notice
+      window.addEventListener('offline', () => {
+        alert('الاتصال بالإنترنت غير متوفر. ستتأخر العمليات حتى يعود الاتصال.');
       });
 
       // Logout
