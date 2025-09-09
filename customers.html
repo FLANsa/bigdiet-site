@@ -83,7 +83,10 @@
     <div class="container mt-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1>إدارة العملاء</h1>
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCustomerModal">إضافة عميل</button>
+            <div>
+                <button class="btn btn-secondary me-2" onclick="testFirebaseConnection()">اختبار الاتصال</button>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCustomerModal">إضافة عميل</button>
+            </div>
         </div>
 
         <!-- Customers Table -->
@@ -228,49 +231,66 @@
         }
 
         async loadCustomers() {
-          const F = window.firebaseDB_instance;
+          try {
+            // Show loading state
+            this.$tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4"><div class="spinner-border"></div></td></tr>';
+            
+            const F = window.firebaseDB_instance;
+            if (!F) {
+              throw new Error('Firebase instance not available');
+            }
 
-          // 1) Fetch all customers
-          const customers = await F.getCustomers();
-          if (!customers || customers.length === 0) {
-            this.$tbody.innerHTML = '<tr><td colspan="7" class="text-center">لا يوجد عملاء</td></tr>';
-            return;
+            console.log('Loading customers from Firebase...');
+            
+            // 1) Fetch all customers
+            const customers = await F.getCustomers();
+            console.log('Fetched customers:', customers);
+            
+            if (!customers || customers.length === 0) {
+              this.$tbody.innerHTML = '<tr><td colspan="7" class="text-center">لا يوجد عملاء</td></tr>';
+              return;
+            }
+
+            // 2) In parallel, fetch each customer's active subscription
+            const subs = await Promise.all(customers.map(c => F.getActiveSubscriptionByCustomerId(c.id)));
+            // 3) Build a unique set of packageIds to fetch once
+            const uniquePkgIds = [...new Set(subs.filter(Boolean).map(s => s.packageId))];
+            const pkgMap = {};
+            await Promise.all(uniquePkgIds.map(async (pid) => {
+              const p = await F.getPackageById(pid);
+              if (p) pkgMap[pid] = p;
+            }));
+
+            // 4) Render rows
+            this.$tbody.innerHTML = '';
+            customers.forEach((customer, idx) => {
+              const sub = subs[idx] || null;
+              const pkgName = sub ? (pkgMap[sub.packageId]?.name || 'لا يوجد اشتراك') : 'لا يوجد اشتراك';
+              const regDate = customer.registrationDate || '-';
+              const kind = sub ? 'مشترك' : 'عميل جديد';
+              const bClass = badgeClass(customer.status);
+
+              const tr = document.createElement('tr');
+              tr.innerHTML = `
+                <td>${regDate}</td>
+                <td>${kind}</td>
+                <td>${customer.name || '-'}</td>
+                <td>${customer.phone || '-'}</td>
+                <td>${pkgName}</td>
+                <td><span class="badge ${bClass}">${customer.status || '-'}</span></td>
+                <td>
+                  <button class="btn btn-sm btn-outline-primary me-1" onclick="editCustomer('${customer.id}')">تعديل</button>
+                  <button class="btn btn-sm btn-outline-danger" onclick="deleteCustomer('${customer.id}')">حذف</button>
+                </td>
+              `;
+              this.$tbody.appendChild(tr);
+            });
+            
+            console.log('Successfully loaded', customers.length, 'customers');
+          } catch (error) {
+            console.error('Error loading customers:', error);
+            this.$tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">تعذّر تحميل العملاء: ' + error.message + '</td></tr>';
           }
-
-          // 2) In parallel, fetch each customer's active subscription
-          const subs = await Promise.all(customers.map(c => F.getActiveSubscriptionByCustomerId(c.id)));
-          // 3) Build a unique set of packageIds to fetch once
-          const uniquePkgIds = [...new Set(subs.filter(Boolean).map(s => s.packageId))];
-          const pkgMap = {};
-          await Promise.all(uniquePkgIds.map(async (pid) => {
-            const p = await F.getPackageById(pid);
-            if (p) pkgMap[pid] = p;
-          }));
-
-          // 4) Render rows
-          this.$tbody.innerHTML = '';
-          customers.forEach((customer, idx) => {
-            const sub = subs[idx] || null;
-            const pkgName = sub ? (pkgMap[sub.packageId]?.name || 'لا يوجد اشتراك') : 'لا يوجد اشتراك';
-            const regDate = customer.registrationDate || '-';
-            const kind = sub ? 'مشترك' : 'عميل جديد';
-            const bClass = badgeClass(customer.status);
-
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-              <td>${regDate}</td>
-              <td>${kind}</td>
-              <td>${customer.name || '-'}</td>
-              <td>${customer.phone || '-'}</td>
-              <td>${pkgName}</td>
-              <td><span class="badge ${bClass}">${customer.status || '-'}</span></td>
-              <td>
-                <button class="btn btn-sm btn-outline-primary me-1" onclick="editCustomer('${customer.id}')">تعديل</button>
-                <button class="btn btn-sm btn-outline-danger" onclick="deleteCustomer('${customer.id}')">حذف</button>
-              </td>
-            `;
-            this.$tbody.appendChild(tr);
-          });
         }
       }
 
@@ -378,13 +398,36 @@
       let customerManager;
       document.addEventListener('DOMContentLoaded', async function () {
         try {
+          console.log('DOM loaded, waiting for Firebase...');
           await waitForFirebaseInstance();
+          console.log('Firebase instance ready:', window.firebaseDB_instance);
           customerManager = new CustomerManager();
         } catch (e) {
-          console.error(e);
-          alert('تعذّر تحميل البيانات. يرجى تحديث الصفحة.');
+          console.error('Initialization error:', e);
+          alert('تعذّر تحميل البيانات. يرجى تحديث الصفحة.\nError: ' + e.message);
         }
       });
+
+      // Test Firebase connection
+      async function testFirebaseConnection() {
+        try {
+          console.log('Testing Firebase connection...');
+          const F = window.firebaseDB_instance;
+          if (!F) {
+            alert('Firebase instance not available');
+            return;
+          }
+          
+          console.log('Firebase instance:', F);
+          console.log('Testing getCustomers...');
+          const customers = await F.getCustomers();
+          console.log('Customers result:', customers);
+          alert('Firebase connection successful!\nFound ' + (customers ? customers.length : 0) + ' customers');
+        } catch (error) {
+          console.error('Firebase test error:', error);
+          alert('Firebase connection failed: ' + error.message);
+        }
+      }
 
       // Logout
       function logout() {
