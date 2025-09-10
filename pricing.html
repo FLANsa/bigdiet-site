@@ -290,6 +290,9 @@
                             </div>
                         </div>
                     </div>
+                    <div class="col-md-6">
+                        <!-- Empty space for future content -->
+                    </div>
                 </div>
 
                 <!-- Pricing Summary -->
@@ -621,7 +624,6 @@
                     dailyRevenue.forEach(day => {
                         const dateObj = new Date(day.date);
                         const dayName = dateObj.toLocaleDateString('ar-SA', { weekday: 'short' });
-                        const dayNumber = dateObj.getDate();
                         
                         // Highlight today
                         const isToday = day.date === new Date().toISOString().slice(0, 10);
@@ -631,7 +633,7 @@
                         html += `
                             <div class="d-flex justify-content-between align-items-center mb-2 p-2 ${bgClass} rounded">
                                 <div>
-                                    <strong class="${textClass}">${dayName} ${dayNumber}</strong>
+                                    <strong class="${textClass}">${dayName}</strong>
                                     ${isToday ? '<small class="text-primary d-block">اليوم</small>' : ''}
                                 </div>
                                 <div class="text-end">
