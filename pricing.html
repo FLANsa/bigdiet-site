@@ -228,11 +228,6 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="mt-3">
-                                    <button class="btn btn-primary" onclick="refreshRevenue()">
-                                        <i class="bi bi-arrow-clockwise"></i> تحديث الإيرادات
-                                    </button>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -403,12 +398,6 @@
         // Initialize pricing manager
         let pricingManager;
 
-        // Global function for refresh button
-        function refreshRevenue() {
-            if (pricingManager) {
-                pricingManager.loadRevenueData();
-            }
-        }
 
         // Global function for applying date filter
         function applyDateFilter() {
