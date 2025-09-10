@@ -55,7 +55,6 @@
   <script>
     // ——— Admin credentials (local-only by your requirement) ———
     const ADMIN_USER = 'admin';
-    const ADMIN_PASS = 'admin123';
     
     // Simple password hashing function
     async function hashPassword(password) {
@@ -67,8 +66,8 @@
     }
     
     // Pre-computed hashes for the passwords (so we don't need to hash on every login)
-    const ADMIN_PASS_HASH = '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9'; // admin123
-    const USER_PASS_HASH = 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f'; // user123
+    const ADMIN_PASS_HASH = '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9'; // 
+    const USER_PASS_HASH = 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f'; // 
 
     // Already logged in? Go to dashboard.
     if (localStorage.getItem('isLoggedIn') === 'true') {
