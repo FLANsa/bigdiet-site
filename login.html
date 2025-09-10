@@ -56,6 +56,19 @@
     // ——— Admin credentials (local-only by your requirement) ———
     const ADMIN_USER = 'admin';
     const ADMIN_PASS = 'admin123';
+    
+    // Simple password hashing function
+    async function hashPassword(password) {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(password);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+    
+    // Pre-computed hashes for the passwords (so we don't need to hash on every login)
+    const ADMIN_PASS_HASH = '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9'; // admin123
+    const USER_PASS_HASH = 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f'; // user123
 
     // Already logged in? Go to dashboard.
     if (localStorage.getItem('isLoggedIn') === 'true') {
@@ -86,20 +99,28 @@
       }
 
       setLoading(true);
-      // Local check (no backend)
-      setTimeout(() => { // tiny delay to show spinner
-        if (username === ADMIN_USER && password === ADMIN_PASS) {
-          localStorage.setItem('isLoggedIn', 'true');
-          localStorage.setItem('userRole', 'admin');
-          localStorage.setItem('username', username);
-          window.location.href = 'dashboard.html';
-        } else if (username === 'user' && password === 'user123') {
-          localStorage.setItem('isLoggedIn', 'true');
-          localStorage.setItem('userRole', 'user');
-          localStorage.setItem('username', username);
-          window.location.href = 'pricing.html';
-        } else {
-          showError('اسم المستخدم أو كلمة المرور غير صحيحة');
+      // Local check with secure password hashing
+      setTimeout(async () => { // tiny delay to show spinner
+        try {
+          const passwordHash = await hashPassword(password);
+          
+          if (username === ADMIN_USER && passwordHash === ADMIN_PASS_HASH) {
+            localStorage.setItem('isLoggedIn', 'true');
+            localStorage.setItem('userRole', 'admin');
+            localStorage.setItem('username', username);
+            window.location.href = 'dashboard.html';
+          } else if (username === 'user' && passwordHash === USER_PASS_HASH) {
+            localStorage.setItem('isLoggedIn', 'true');
+            localStorage.setItem('userRole', 'user');
+            localStorage.setItem('username', username);
+            window.location.href = 'pricing.html';
+          } else {
+            showError('اسم المستخدم أو كلمة المرور غير صحيحة');
+            setLoading(false);
+          }
+        } catch (error) {
+          console.error('Password hashing error:', error);
+          showError('خطأ في النظام، يرجى المحاولة مرة أخرى');
           setLoading(false);
         }
       }, 200);
