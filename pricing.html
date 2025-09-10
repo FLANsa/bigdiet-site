@@ -233,6 +233,82 @@
                     </div>
                 </div>
 
+                <!-- Analytics Section -->
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>أكثر الباقات اختياراً</h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="popularPackages">
+                                    <div class="text-center">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">جاري التحميل...</span>
+                                        </div>
+                                        <p class="mt-2 text-muted">جاري تحميل البيانات...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>إحصائيات الشهر الحالي</h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="monthlyStats">
+                                    <div class="text-center">
+                                        <div class="spinner-border text-success" role="status">
+                                            <span class="visually-hidden">جاري التحميل...</span>
+                                        </div>
+                                        <p class="mt-2 text-muted">جاري تحميل البيانات...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Additional Analytics -->
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0"><i class="fas fa-users me-2"></i>أفضل العملاء</h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="topCustomers">
+                                    <div class="text-center">
+                                        <div class="spinner-border text-warning" role="status">
+                                            <span class="visually-hidden">جاري التحميل...</span>
+                                        </div>
+                                        <p class="mt-2 text-muted">جاري تحميل البيانات...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>اتجاهات الإيرادات</h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="revenueTrends">
+                                    <div class="text-center">
+                                        <div class="spinner-border text-info" role="status">
+                                            <span class="visually-hidden">جاري التحميل...</span>
+                                        </div>
+                                        <p class="mt-2 text-muted">جاري تحميل البيانات...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Pricing Summary -->
                 <div class="row mt-4">
                     <div class="col-md-6">
@@ -393,6 +469,267 @@
                     document.getElementById('averageRevenue').textContent = 'خطأ';
                 }
             }
+
+            // Load popular packages analytics
+            async loadPopularPackages() {
+                try {
+                    const F = window.firebaseDB_instance;
+                    if (!F) {
+                        throw new Error('Firebase not available');
+                    }
+
+                    const subscriptions = await F.getSubscriptions();
+                    const packageMap = new Map(this.packages.map(pkg => [pkg.id, pkg]));
+                    
+                    // Count package usage
+                    const packageCounts = new Map();
+                    subscriptions.forEach(sub => {
+                        const count = packageCounts.get(sub.packageId) || 0;
+                        packageCounts.set(sub.packageId, count + 1);
+                    });
+
+                    // Sort by count and get top 5
+                    const sortedPackages = Array.from(packageCounts.entries())
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, 5);
+
+                    const container = document.getElementById('popularPackages');
+                    if (sortedPackages.length === 0) {
+                        container.innerHTML = '<p class="text-muted text-center">لا توجد بيانات متاحة</p>';
+                        return;
+                    }
+
+                    let html = '';
+                    sortedPackages.forEach(([packageId, count], index) => {
+                        const pkg = packageMap.get(packageId);
+                        if (pkg) {
+                            const percentage = subscriptions.length > 0 ? (count / subscriptions.length * 100).toFixed(1) : 0;
+                            html += `
+                                <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-light rounded">
+                                    <div>
+                                        <span class="badge bg-primary me-2">${index + 1}</span>
+                                        <strong>${pkg.name}</strong>
+                                    </div>
+                                    <div class="text-end">
+                                        <div class="fw-bold text-primary">${count}</div>
+                                        <small class="text-muted">${percentage}%</small>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    });
+
+                    container.innerHTML = html;
+                } catch (error) {
+                    console.error('Error loading popular packages:', error);
+                    document.getElementById('popularPackages').innerHTML = 
+                        '<p class="text-danger text-center">خطأ في تحميل البيانات</p>';
+                }
+            }
+
+            // Load monthly statistics
+            async loadMonthlyStats() {
+                try {
+                    const F = window.firebaseDB_instance;
+                    if (!F) {
+                        throw new Error('Firebase not available');
+                    }
+
+                    const now = new Date();
+                    const currentMonth = now.getMonth() + 1;
+                    const currentYear = now.getFullYear();
+                    
+                    const subscriptions = await F.getSubscriptions();
+                    const packageMap = new Map(this.packages.map(pkg => [pkg.id, pkg]));
+                    
+                    // Filter subscriptions for current month
+                    const monthlySubscriptions = subscriptions.filter(sub => {
+                        const subDate = new Date(sub.startDate || sub.createdAt);
+                        return subDate.getMonth() + 1 === currentMonth && subDate.getFullYear() === currentYear;
+                    });
+
+                    let monthlyRevenue = 0;
+                    monthlySubscriptions.forEach(sub => {
+                        const pkg = packageMap.get(sub.packageId);
+                        if (pkg) {
+                            const basePrice = Number(pkg.price) || 0;
+                            const snackPrice = sub.hasSnacks ? 150 : 0;
+                            monthlyRevenue += basePrice + snackPrice;
+                        }
+                    });
+
+                    const container = document.getElementById('monthlyStats');
+                    container.innerHTML = `
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <div class="p-3 bg-success bg-opacity-10 rounded">
+                                    <h4 class="text-success mb-1">${monthlySubscriptions.length}</h4>
+                                    <small class="text-muted">اشتراكات جديدة</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="p-3 bg-primary bg-opacity-10 rounded">
+                                    <h4 class="text-primary mb-1">${monthlyRevenue.toFixed(2)}</h4>
+                                    <small class="text-muted">إيراد الشهر (ريال)</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <small class="text-muted">
+                                <i class="fas fa-calendar me-1"></i>
+                                إحصائيات شهر ${currentMonth}/${currentYear}
+                            </small>
+                        </div>
+                    `;
+                } catch (error) {
+                    console.error('Error loading monthly stats:', error);
+                    document.getElementById('monthlyStats').innerHTML = 
+                        '<p class="text-danger text-center">خطأ في تحميل البيانات</p>';
+                }
+            }
+
+            // Load top customers
+            async loadTopCustomers() {
+                try {
+                    const F = window.firebaseDB_instance;
+                    if (!F) {
+                        throw new Error('Firebase not available');
+                    }
+
+                    const [customers, subscriptions] = await Promise.all([
+                        F.getCustomers(),
+                        F.getSubscriptions()
+                    ]);
+
+                    // Count subscriptions per customer
+                    const customerCounts = new Map();
+                    subscriptions.forEach(sub => {
+                        const count = customerCounts.get(sub.customerId) || 0;
+                        customerCounts.set(sub.customerId, count + 1);
+                    });
+
+                    // Sort by count and get top 5
+                    const sortedCustomers = Array.from(customerCounts.entries())
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, 5);
+
+                    const customerMap = new Map(customers.map(customer => [customer.id, customer]));
+
+                    const container = document.getElementById('topCustomers');
+                    if (sortedCustomers.length === 0) {
+                        container.innerHTML = '<p class="text-muted text-center">لا توجد بيانات متاحة</p>';
+                        return;
+                    }
+
+                    let html = '';
+                    sortedCustomers.forEach(([customerId, count], index) => {
+                        const customer = customerMap.get(customerId);
+                        if (customer) {
+                            html += `
+                                <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-light rounded">
+                                    <div>
+                                        <span class="badge bg-warning me-2">${index + 1}</span>
+                                        <strong>${customer.name}</strong>
+                                        <br><small class="text-muted">${customer.phone}</small>
+                                    </div>
+                                    <div class="text-end">
+                                        <div class="fw-bold text-warning">${count}</div>
+                                        <small class="text-muted">اشتراك</small>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    });
+
+                    container.innerHTML = html;
+                } catch (error) {
+                    console.error('Error loading top customers:', error);
+                    document.getElementById('topCustomers').innerHTML = 
+                        '<p class="text-danger text-center">خطأ في تحميل البيانات</p>';
+                }
+            }
+
+            // Load revenue trends (last 7 days)
+            async loadRevenueTrends() {
+                try {
+                    const F = window.firebaseDB_instance;
+                    if (!F) {
+                        throw new Error('Firebase not available');
+                    }
+
+                    const subscriptions = await F.getSubscriptions();
+                    const packageMap = new Map(this.packages.map(pkg => [pkg.id, pkg]));
+                    
+                    // Get last 7 days
+                    const last7Days = [];
+                    for (let i = 6; i >= 0; i--) {
+                        const date = new Date();
+                        date.setDate(date.getDate() - i);
+                        last7Days.push(date.toISOString().slice(0, 10));
+                    }
+
+                    // Calculate daily revenue
+                    const dailyRevenue = last7Days.map(date => {
+                        const daySubscriptions = subscriptions.filter(sub => {
+                            const subDate = new Date(sub.startDate || sub.createdAt).toISOString().slice(0, 10);
+                            return subDate === date;
+                        });
+
+                        let revenue = 0;
+                        daySubscriptions.forEach(sub => {
+                            const pkg = packageMap.get(sub.packageId);
+                            if (pkg) {
+                                const basePrice = Number(pkg.price) || 0;
+                                const snackPrice = sub.hasSnacks ? 150 : 0;
+                                revenue += basePrice + snackPrice;
+                            }
+                        });
+
+                        return {
+                            date: date,
+                            revenue: revenue,
+                            count: daySubscriptions.length
+                        };
+                    });
+
+                    const container = document.getElementById('revenueTrends');
+                    let html = '<div class="mb-3"><strong>آخر 7 أيام:</strong></div>';
+                    
+                    dailyRevenue.forEach(day => {
+                        const dateObj = new Date(day.date);
+                        const dayName = dateObj.toLocaleDateString('ar-SA', { weekday: 'short' });
+                        const dayNumber = dateObj.getDate();
+                        
+                        html += `
+                            <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-light rounded">
+                                <div>
+                                    <strong>${dayName} ${dayNumber}</strong>
+                                </div>
+                                <div class="text-end">
+                                    <div class="fw-bold text-info">${day.revenue.toFixed(2)} ريال</div>
+                                    <small class="text-muted">${day.count} اشتراك</small>
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    container.innerHTML = html;
+                } catch (error) {
+                    console.error('Error loading revenue trends:', error);
+                    document.getElementById('revenueTrends').innerHTML = 
+                        '<p class="text-danger text-center">خطأ في تحميل البيانات</p>';
+                }
+            }
+
+            // Load all analytics
+            async loadAllAnalytics() {
+                await Promise.all([
+                    this.loadPopularPackages(),
+                    this.loadMonthlyStats(),
+                    this.loadTopCustomers(),
+                    this.loadRevenueTrends()
+                ]);
+            }
         }
 
         // Initialize pricing manager
@@ -428,6 +765,13 @@
 
             // Initialize pricing manager
             pricingManager = new PricingManager();
+            
+            // Load analytics after a short delay to ensure packages are loaded
+            setTimeout(() => {
+                if (pricingManager) {
+                    pricingManager.loadAllAnalytics();
+                }
+            }, 1000);
         });
 
         // Logout function
