@@ -74,16 +74,50 @@
         .table-responsive .table td {
             border-radius: 0 !important;
         }
+        
+        /* Beautiful navigation enhancements */
+        .navbar-brand:hover {
+            transform: scale(1.05);
+            transition: transform 0.3s ease;
+        }
+        
+        .user-welcome:hover {
+            background: rgba(255,255,255,0.3) !important;
+            transform: translateY(-1px);
+            transition: all 0.3s ease;
+        }
+        
+        .btn-outline-light:hover {
+            background: rgba(255,255,255,0.2) !important;
+            border-color: rgba(255,255,255,0.6) !important;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        
+        .navbar {
+            backdrop-filter: blur(10px);
+        }
     </style>
 </head>
 <body>
-    <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-success">
+    <!-- Beautiful Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
         <div class="container">
-            <a class="navbar-brand" href="#">Big Diet</a>
-            <div class="navbar-nav ms-auto">
-                <span class="navbar-text me-3">مرحباً، <strong id="currentUser">المستخدم</strong></span>
-                <button class="btn btn-outline-light btn-sm" onclick="logout()">تسجيل الخروج</button>
+            <a class="navbar-brand d-flex align-items-center" href="#" style="font-weight: 700; font-size: 1.5rem; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+                <i class="fas fa-leaf me-2" style="color: #fff; font-size: 1.8rem;"></i>
+                Big Diet
+            </a>
+            <div class="navbar-nav ms-auto d-flex align-items-center">
+                <div class="user-welcome me-3" style="background: rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 25px; backdrop-filter: blur(10px);">
+                    <span class="navbar-text mb-0" style="color: white; font-weight: 500;">
+                        <i class="fas fa-user-circle me-2"></i>
+                        مرحباً، <strong id="currentUser" style="color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.3);">المستخدم</strong>
+                    </span>
+                </div>
+                <button class="btn btn-outline-light btn-sm" onclick="logout()" style="border-radius: 20px; padding: 8px 20px; font-weight: 500; transition: all 0.3s ease; border: 2px solid rgba(255,255,255,0.3);">
+                    <i class="fas fa-sign-out-alt me-1"></i>
+                    تسجيل الخروج
+                </button>
             </div>
         </div>
     </nav>
