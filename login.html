@@ -29,7 +29,7 @@
 
     <form id="loginForm" novalidate>
       <div class="mb-3">
-        <label for="username" class="form-label">اسم المستخدم</label>
+        <label for="username" class="form-label">اسم المستخدم أو رقم الهاتف</label>
         <input type="text" class="form-control" id="username" autocomplete="username" required />
       </div>
       <div class="mb-3">
@@ -43,7 +43,8 @@
 
     <div class="text-center mt-3">
       <small class="text-muted">
-        للعملاء: <a href="customer-portal.html" class="text-decoration-none">استعلام عن الاشتراك</a>
+        للعملاء: <a href="customer-portal.html" class="text-decoration-none">استعلام عن الاشتراك</a><br>
+        <strong>للموظفين:</strong> admin/admin123 أو رقم هاتفك/user123
       </small>
     </div>
   </div>
@@ -93,7 +94,8 @@
           localStorage.setItem('userRole', 'admin');
           localStorage.setItem('username', username);
           window.location.href = 'dashboard.html';
-        } else if (username === 'user' && password === 'user123') {
+        } else if ((username === 'user' && password === 'user123') || 
+                   (username.length === 10 && /^\d{10}$/.test(username) && password === 'user123')) {
           localStorage.setItem('isLoggedIn', 'true');
           localStorage.setItem('userRole', 'user');
           localStorage.setItem('username', username);
