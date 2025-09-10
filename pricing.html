@@ -271,25 +271,8 @@
                     </div>
                 </div>
 
-                <!-- Additional Analytics -->
+                <!-- Revenue Trends -->
                 <div class="row mt-4">
-                    <div class="col-md-6">
-                        <div class="card">
-                            <div class="card-header">
-                                <h5 class="mb-0"><i class="fas fa-users me-2"></i>أفضل العملاء</h5>
-                            </div>
-                            <div class="card-body">
-                                <div id="topCustomers">
-                                    <div class="text-center">
-                                        <div class="spinner-border text-warning" role="status">
-                                            <span class="visually-hidden">جاري التحميل...</span>
-                                        </div>
-                                        <p class="mt-2 text-muted">جاري تحميل البيانات...</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                     <div class="col-md-6">
                         <div class="card">
                             <div class="card-header">
@@ -588,68 +571,8 @@
                 }
             }
 
-            // Load top customers
-            async loadTopCustomers() {
-                try {
-                    const F = window.firebaseDB_instance;
-                    if (!F) {
-                        throw new Error('Firebase not available');
-                    }
 
-                    const [customers, subscriptions] = await Promise.all([
-                        F.getCustomers(),
-                        F.getSubscriptions()
-                    ]);
-
-                    // Count subscriptions per customer
-                    const customerCounts = new Map();
-                    subscriptions.forEach(sub => {
-                        const count = customerCounts.get(sub.customerId) || 0;
-                        customerCounts.set(sub.customerId, count + 1);
-                    });
-
-                    // Sort by count and get top 5
-                    const sortedCustomers = Array.from(customerCounts.entries())
-                        .sort((a, b) => b[1] - a[1])
-                        .slice(0, 5);
-
-                    const customerMap = new Map(customers.map(customer => [customer.id, customer]));
-
-                    const container = document.getElementById('topCustomers');
-                    if (sortedCustomers.length === 0) {
-                        container.innerHTML = '<p class="text-muted text-center">لا توجد بيانات متاحة</p>';
-                        return;
-                    }
-
-                    let html = '';
-                    sortedCustomers.forEach(([customerId, count], index) => {
-                        const customer = customerMap.get(customerId);
-                        if (customer) {
-                            html += `
-                                <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-light rounded">
-                                    <div>
-                                        <span class="badge bg-warning me-2">${index + 1}</span>
-                                        <strong>${customer.name}</strong>
-                                        <br><small class="text-muted">${customer.phone}</small>
-                                    </div>
-                                    <div class="text-end">
-                                        <div class="fw-bold text-warning">${count}</div>
-                                        <small class="text-muted">اشتراك</small>
-                                    </div>
-                                </div>
-                            `;
-                        }
-                    });
-
-                    container.innerHTML = html;
-                } catch (error) {
-                    console.error('Error loading top customers:', error);
-                    document.getElementById('topCustomers').innerHTML = 
-                        '<p class="text-danger text-center">خطأ في تحميل البيانات</p>';
-                }
-            }
-
-            // Load revenue trends (last 7 days)
+            // Load revenue trends (last 7 days, sorted by current day first)
             async loadRevenueTrends() {
                 try {
                     const F = window.firebaseDB_instance;
@@ -660,9 +583,9 @@
                     const subscriptions = await F.getSubscriptions();
                     const packageMap = new Map(this.packages.map(pkg => [pkg.id, pkg]));
                     
-                    // Get last 7 days
+                    // Get last 7 days starting from today
                     const last7Days = [];
-                    for (let i = 6; i >= 0; i--) {
+                    for (let i = 0; i < 7; i++) {
                         const date = new Date();
                         date.setDate(date.getDate() - i);
                         last7Days.push(date.toISOString().slice(0, 10));
@@ -700,13 +623,19 @@
                         const dayName = dateObj.toLocaleDateString('ar-SA', { weekday: 'short' });
                         const dayNumber = dateObj.getDate();
                         
+                        // Highlight today
+                        const isToday = day.date === new Date().toISOString().slice(0, 10);
+                        const bgClass = isToday ? 'bg-primary bg-opacity-10' : 'bg-light';
+                        const textClass = isToday ? 'text-primary' : '';
+                        
                         html += `
-                            <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-light rounded">
+                            <div class="d-flex justify-content-between align-items-center mb-2 p-2 ${bgClass} rounded">
                                 <div>
-                                    <strong>${dayName} ${dayNumber}</strong>
+                                    <strong class="${textClass}">${dayName} ${dayNumber}</strong>
+                                    ${isToday ? '<small class="text-primary d-block">اليوم</small>' : ''}
                                 </div>
                                 <div class="text-end">
-                                    <div class="fw-bold text-info">${day.revenue.toFixed(2)} ريال</div>
+                                    <div class="fw-bold ${isToday ? 'text-primary' : 'text-info'}">${day.revenue.toFixed(2)} ريال</div>
                                     <small class="text-muted">${day.count} اشتراك</small>
                                 </div>
                             </div>
@@ -726,7 +655,6 @@
                 await Promise.all([
                     this.loadPopularPackages(),
                     this.loadMonthlyStats(),
-                    this.loadTopCustomers(),
                     this.loadRevenueTrends()
                 ]);
             }
