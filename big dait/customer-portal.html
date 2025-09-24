@@ -13,40 +13,114 @@
     <style>
         body {
             font-family: 'Cairo', sans-serif;
-            background: 
-                linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%),
-                url('textured-green-bg.svg');
-            background-size: 200px 200px;
-            background-repeat: repeat;
+            background: url('image.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
             background-attachment: fixed;
             min-height: 100vh;
             margin: 0;
+            position: relative;
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.1);
+            pointer-events: none;
+            z-index: 1;
         }
         
         .hero-section {
-            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
-            backdrop-filter: blur(10px);
-            border-radius: 30px;
-            margin: 20px;
-            padding: 60px 20px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.08) 100%);
+            backdrop-filter: blur(15px);
+            border-radius: 25px;
+            margin: 15px;
+            padding: 40px 20px;
             text-align: center;
-            color: white;
+            color: #2c3e50;
+            position: relative;
+            z-index: 2;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        .logo-container {
+            margin-bottom: 20px;
+            position: relative;
+        }
+        
+        .logo-container::before {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: -10px;
+            right: -10px;
+            bottom: -10px;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            border-radius: 25px;
+            z-index: -1;
+        }
+        
+        .logo {
+            max-width: 120px;
+            height: auto;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            background: transparent;
+            mix-blend-mode: multiply;
+            filter: drop-shadow(0 2px 6px rgba(0,0,0,0.1));
+            transition: all 0.3s ease;
+        }
+        
+        .logo:hover {
+            transform: scale(1.02);
+            filter: drop-shadow(0 4px 12px rgba(0,0,0,0.15));
+        }
+        
+        .navbar-brand .logo {
+            max-width: 60px;
+            height: auto;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            background: transparent;
+            mix-blend-mode: multiply;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+            transition: all 0.3s ease;
+        }
+        
+        .navbar-brand .logo:hover {
+            transform: scale(1.05);
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.15));
         }
         
         .main-card {
             background: rgba(255,255,255,0.95);
             backdrop-filter: blur(25px);
-            border-radius: 25px;
-            box-shadow: 0 25px 50px rgba(0,0,0,0.2);
-            border: 2px solid rgba(255,255,255,0.4);
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+            border: 2px solid rgba(255,255,255,0.6);
             overflow: hidden;
+            position: relative;
+            z-index: 2;
+            margin-bottom: 20px;
         }
         
         .card-header {
-            background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
             border: none;
-            padding: 40px 30px;
+            padding: 30px 20px;
             text-align: center;
+            position: relative;
+            z-index: 3;
+        }
+        
+        .card-header h3, .card-header p {
+            color: white;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         
         .icon-circle {
@@ -70,23 +144,25 @@
         }
         
         .form-control:focus {
-            border-color: #56ab2f;
-            box-shadow: 0 0 0 0.2rem rgba(86, 171, 47, 0.25);
+            border-color: #27ae60;
+            box-shadow: 0 0 0 0.2rem rgba(39, 174, 96, 0.25);
         }
         
         .btn-primary {
-            background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
             border: none;
             border-radius: 15px;
             padding: 15px 30px;
             font-weight: 600;
             font-size: 1.1rem;
             transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);
         }
         
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(86, 171, 47, 0.4);
+            box-shadow: 0 10px 25px rgba(39, 174, 96, 0.4);
+            background: linear-gradient(135deg, #229954 0%, #27ae60 100%);
         }
         
         .stats-card {
@@ -103,23 +179,27 @@
         }
         
         .stats-card.success {
-            background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
             color: white;
+            border: 2px solid rgba(255,255,255,0.3);
         }
         
         .stats-card.info {
-            background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%);
+            background: linear-gradient(135deg, #3498db 0%, #5dade2 100%);
             color: white;
+            border: 2px solid rgba(255,255,255,0.3);
         }
         
         .stats-card.warning {
-            background: linear-gradient(135deg, #f7b731 0%, #f39c12 100%);
+            background: linear-gradient(135deg, #f39c12 0%, #f4d03f 100%);
             color: white;
+            border: 2px solid rgba(255,255,255,0.3);
         }
         
         .stats-card.danger {
-            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            background: linear-gradient(135deg, #e74c3c 0%, #ec7063 100%);
             color: white;
+            border: 2px solid rgba(255,255,255,0.3);
         }
         
         .stats-number {
@@ -158,7 +238,7 @@
             padding: 20px;
             margin-bottom: 15px;
             box-shadow: 0 5px 15px rgba(0,0,0,0.08);
-            border-right: 4px solid #56ab2f;
+            border-right: 4px solid #27ae60;
         }
         
         .navbar-brand {
@@ -167,7 +247,7 @@
         }
         
         .input-group-text {
-            background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%) !important;
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%) !important;
             color: white !important;
             border: none !important;
             border-radius: 15px !important;
@@ -204,17 +284,92 @@
             50% { transform: scale(1.05); }
             100% { transform: scale(1); }
         }
+        
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            .hero-section {
+                margin: 10px;
+                padding: 30px 15px;
+                border-radius: 20px;
+            }
+            
+            .main-card {
+                margin: 10px;
+                border-radius: 15px;
+            }
+            
+            .card-header {
+                padding: 25px 15px;
+            }
+            
+            .logo {
+                max-width: 100px;
+            }
+            
+            .navbar-brand .logo {
+                max-width: 50px;
+            }
+            
+            .stats-number {
+                font-size: 2rem;
+            }
+            
+            .form-control {
+                font-size: 16px; /* Prevents zoom on iOS */
+            }
+            
+            .btn-primary {
+                padding: 12px 25px;
+                font-size: 1rem;
+            }
+            
+            .recent-visits {
+                padding: 20px;
+                margin-top: 20px;
+            }
+            
+            .visit-item {
+                padding: 15px;
+                margin-bottom: 10px;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .hero-section h1 {
+                font-size: 1.8rem;
+            }
+            
+            .hero-section p {
+                font-size: 1rem;
+            }
+            
+            .stats-card {
+                margin-bottom: 15px;
+            }
+            
+            .stats-number {
+                font-size: 1.8rem;
+            }
+            
+            .icon-circle {
+                width: 60px;
+                height: 60px;
+                font-size: 25px;
+            }
+            
+            .navbar-brand .logo {
+                max-width: 45px;
+            }
+        }
+        
     </style>
 </head>
 <body>
     <!-- Beautiful Header with White Background -->
-    <nav class="navbar navbar-expand-lg navbar-light" style="background: white; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+    <nav class="navbar navbar-expand-lg navbar-light" style="background: rgba(255,255,255,0.95); backdrop-filter: blur(15px); box-shadow: 0 4px 20px rgba(0,0,0,0.1); position: relative; z-index: 3;">
         <div class="container">
-            <a class="navbar-brand text-success d-flex align-items-center" href="customer-portal.html">
-                <div>
-                    <strong>big diet</strong>
-                    <div style="font-size: 0.9rem; opacity: 0.7;">بوابة العميل</div>
-                </div>
+            <a class="navbar-brand d-flex align-items-center" href="customer-portal.html">
+                <img src="logo.jpeg" alt="big diet logo" class="logo">
             </a>
         </div>
     </nav>
@@ -224,6 +379,9 @@
         <div class="container">
             <div class="row justify-content-center">
                 <div class="col-lg-8 text-center">
+                    <div class="logo-container">
+                        <img src="logo.jpeg" alt="big diet logo" class="logo">
+                    </div>
                     <h1 class="display-4 fw-bold mb-3">مرحباً بك في big diet</h1>
                     <p class="lead mb-4">استعلم عن اشتراكك بسهولة وسرعة</p>
                 </div>

@@ -4,6 +4,27 @@
 body {
     direction: rtl;
     text-align: right;
+    background: url('image.png') center/cover no-repeat fixed;
+    min-height: 100vh;
+    position: relative;
+}
+
+/* Background overlay for better readability */
+body::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.85);
+    z-index: -1;
+}
+
+/* Main content should be above the background */
+.container, .container-fluid {
+    position: relative;
+    z-index: 1;
 }
 
 /* Arabic font support */
@@ -17,6 +38,42 @@ body {
 .navbar-brand {
     font-weight: 700;
     color: #28a745 !important;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.navbar-brand .logo {
+    width: 40px;
+    height: 40px;
+    background: url('logo.jpeg') center/contain no-repeat;
+    background-size: contain;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.1));
+    border-radius: 50%;
+    background-color: transparent;
+}
+
+/* Logo styling for various contexts */
+.logo {
+    background: url('logo.jpeg') center/contain no-repeat;
+    background-size: contain;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+    background-color: transparent;
+}
+
+.logo-small {
+    width: 30px;
+    height: 30px;
+}
+
+.logo-medium {
+    width: 50px;
+    height: 50px;
+}
+
+.logo-large {
+    width: 80px;
+    height: 80px;
 }
 
 .navbar-nav .nav-link {
