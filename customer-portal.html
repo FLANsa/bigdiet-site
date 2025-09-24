@@ -13,24 +13,33 @@
     <style>
         body {
             font-family: 'Cairo', sans-serif;
-            background: 
-                linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%),
-                url('textured-green-bg.svg');
-            background-size: 200px 200px;
-            background-repeat: repeat;
-            background-attachment: fixed;
+            background: url('image.png') center/cover no-repeat fixed;
             min-height: 100vh;
             margin: 0;
+            position: relative;
+        }
+        
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.85);
+            z-index: -1;
         }
         
         .hero-section {
-            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+            background: linear-gradient(135deg, rgba(40, 167, 69, 0.9) 0%, rgba(32, 201, 151, 0.9) 100%);
             backdrop-filter: blur(10px);
             border-radius: 30px;
             margin: 20px;
             padding: 60px 20px;
             text-align: center;
             color: white;
+            position: relative;
+            z-index: 1;
         }
         
         .main-card {
@@ -40,6 +49,13 @@
             box-shadow: 0 25px 50px rgba(0,0,0,0.2);
             border: 2px solid rgba(255,255,255,0.4);
             overflow: hidden;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .container {
+            position: relative;
+            z-index: 1;
         }
         
         .card-header {
