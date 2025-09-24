@@ -46,27 +46,27 @@
         }
         
         .card-header {
-            text-align: center;
-            margin-bottom: 2rem;
+            margin-bottom: 1.5rem;
         }
         
-        .card-header .logo {
+        .logo {
+            display: block;
             width: 120px;
-            height: 120px;
-            margin: 0 auto 1.5rem;
-            background: url('logo.png') center/contain no-repeat;
-            background-size: contain;
-            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.15));
-            border-radius: 20px;
-            background-color: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(5px);
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            transition: all 0.3s ease;
+            max-width: 45vw;
+            height: auto;
+            margin: 0 auto 1rem;
+            background: none !important;
+            border: 0 !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            filter: none !important;
+            image-rendering: auto;
         }
         
-        .card-header .logo:hover {
-            transform: scale(1.05);
-            filter: drop-shadow(0 6px 12px rgba(0,0,0,0.2));
+        @media (max-width: 480px) {
+            .logo {
+                width: 96px;
+            }
         }
         
         .card-header h3 {
@@ -565,8 +565,8 @@
 </head>
 <body>
     <div class="main-card">
-        <div class="card-header">
-            <div class="logo"></div>
+        <div class="card-header text-center">
+            <img src="logo-transparent.png" alt="Big Diet" class="logo" />
             <h3>Big Diet</h3>
             <p>استعلام عن الاشتراك</p>
         </div>
