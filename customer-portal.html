@@ -51,25 +51,39 @@
         }
         
         .card-header .logo {
-            width: 80px;
-            height: 80px;
-            margin: 0 auto 1rem;
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 1.5rem;
             background: url('logo.jpeg') center/contain no-repeat;
             background-size: contain;
-            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.15));
+            border-radius: 20px;
+            background-color: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(5px);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .card-header .logo:hover {
+            transform: scale(1.05);
+            filter: drop-shadow(0 6px 12px rgba(0,0,0,0.2));
         }
         
         .card-header h3 {
             color: #4a7c59;
             font-weight: 700;
-            margin-bottom: 0.5rem;
-            font-size: 2rem;
+            margin-bottom: 0.8rem;
+            font-size: 2.5rem;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            letter-spacing: 1px;
         }
         
         .card-header p {
             color: #6c757d;
             margin: 0;
-            font-size: 1.1rem;
+            font-size: 1.2rem;
+            font-weight: 500;
+            opacity: 0.9;
         }
         
         .form-control {
