@@ -559,15 +559,15 @@
     <div class="main-card">
         <div class="card-header text-center">
             <img src="logo.png" alt="Big Diet" class="logo" />
-            <p>استعلام عن الاشتراك</p>
+            <p>تعال شوف اشتراكك! 😊</p>
         </div>
         <form id="customerInquiryForm" class="mb-4">
             <div class="mb-3">
-                <label for="phoneNumber" class="form-label">رقم الهاتف</label>
+                <label for="phoneNumber" class="form-label">أدخل رقمك هنا 👇</label>
                 <input type="tel" class="form-control" id="phoneNumber" 
                        placeholder="05xxxxxxxx" maxlength="10" required>
             </div>
-            <button type="submit" class="btn btn-primary w-100">استعلام عن الاشتراك</button>
+            <button type="submit" class="btn btn-primary w-100">خلاص، ابحث! 🔍</button>
         </form>
 
         <!-- Error Message -->
@@ -579,7 +579,7 @@
         <div id="subscriptionDetails" class="fade-in" style="display: none;">
             <hr class="my-4">
             <h4 class="text-center mb-4 fw-bold" style="color: #4a7c59; font-size: 1.8rem; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                تفاصيل الاشتراك
+                هاي اشتراكك! 🎉
             </h4>
                             
             <div class="row g-3 mb-4">
@@ -587,7 +587,7 @@
                     <div class="stats-card">
                         <div class="card-body text-center p-3">
                             <div class="stats-number" id="customerName">-</div>
-                            <div class="stats-label">اسم العميل</div>
+                            <div class="stats-label">اسمك الحلو 😊</div>
                         </div>
                     </div>
                 </div>
@@ -595,7 +595,7 @@
                     <div class="stats-card">
                         <div class="card-body text-center p-3">
                             <div class="stats-number" id="packageName">-</div>
-                            <div class="stats-label">الباقة الحالية</div>
+                            <div class="stats-label">الباقة اللي اخترتها 🍽️</div>
                         </div>
                     </div>
                 </div>
@@ -606,7 +606,7 @@
                     <div class="stats-card success">
                         <div class="card-body text-center p-3">
                             <div class="stats-number" id="daysLeft">-</div>
-                            <div class="stats-label">الأيام المتبقية</div>
+                            <div class="stats-label">كم يوم باقي؟ ⏰</div>
                         </div>
                     </div>
                 </div>
@@ -614,7 +614,7 @@
                     <div class="stats-card info">
                         <div class="card-body text-center p-3">
                             <div class="stats-number" id="endDate">-</div>
-                            <div class="stats-label">تاريخ الانتهاء</div>
+                            <div class="stats-label">متى ينتهي؟ 📅</div>
                         </div>
                     </div>
                 </div>
@@ -625,7 +625,7 @@
                     <div class="stats-card warning">
                         <div class="card-body text-center p-3">
                             <div class="stats-number" id="remainingMeals">-</div>
-                            <div class="stats-label">الوجبات المتبقية</div>
+                            <div class="stats-label">كم وجبة باقية؟ 🍽️</div>
                         </div>
                     </div>
                 </div>
@@ -633,7 +633,7 @@
                     <div class="stats-card danger">
                         <div class="card-body text-center p-3">
                             <div class="stats-number" id="remainingSnacks">-</div>
-                            <div class="stats-label">السناكس المتبقية</div>
+                            <div class="stats-label">كم سناك باقي؟ 🍿</div>
                         </div>
                     </div>
                 </div>
@@ -642,7 +642,7 @@
             <!-- Recent Visits Section -->
             <div class="recent-visits">
                 <h5 class="fw-bold text-center mb-4" style="color: #4a7c59; font-size: 1.4rem; text-shadow: 0 1px 2px rgba(0,0,0,0.1);">
-                    آخر الزيارات
+                    آخر مرات جيت عندنا 🏃‍♂️
                 </h5>
                 <div id="recentVisitsList">
                     <!-- Recent visits will be populated here -->
@@ -721,7 +721,7 @@
         setLoading(isLoading) {
           if (isLoading) {
             this.$submitBtn.disabled = true;
-            this.$submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>جاري البحث...';
+            this.$submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>دور عليك... 🔍';
           } else {
             this.$submitBtn.disabled = false;
             this.$submitBtn.innerHTML = this.originalBtnHTML;
@@ -738,7 +738,7 @@
 
           // Validate phone number (must be exactly 10 digits)
           if (!phoneNumber || phoneNumber.length !== 10) {
-            this.showError('يرجى إدخال رقم هاتف صحيح مكون من 10 أرقام');
+            this.showError('يا حبيبي، أدخل رقمك كامل (10 أرقام) 😅');
             return;
           }
 
@@ -748,14 +748,14 @@
             // 1) Get customer from Firebase
             const customer = await window.firebaseDB_instance.getCustomerByPhone(phoneNumber);
             if (!customer) {
-              this.showError('لم يتم العثور على عميل بهذا الرقم');
+              this.showError('ما لقيتك في النظام، تأكد من الرقم! 🤔');
               return;
             }
 
             // 2) Get customer's active subscription
             const subscription = await window.firebaseDB_instance.getActiveSubscriptionByCustomerId(customer.id);
             if (!subscription) {
-              this.showError('لا يوجد اشتراك نشط لهذا العميل');
+              this.showError('ما عندك اشتراك نشط حالياً، روح اشترك! 💪');
               return;
             }
 
@@ -766,7 +766,7 @@
             await this.displaySubscriptionDetails(customer, subscription, packageData);
           } catch (err) {
             console.error('Error searching customer:', err);
-            this.showError('حدث خطأ أثناء البحث. يرجى المحاولة مرة أخرى.');
+            this.showError('أوبس! حصل خطأ، جرب مرة ثانية 😊');
           } finally {
             this.setLoading(false);
           }
@@ -802,7 +802,7 @@
           const recent = await window.firebaseDB_instance.listDailyRegistrationsByCustomer(customerId, 10);
 
           if (!recent.length) {
-            this.$recentList.innerHTML = '<div class="text-center text-muted py-4">لا توجد زيارات سابقة</div>';
+            this.$recentList.innerHTML = '<div class="text-center text-muted py-4">ما جيت عندنا بعد! تعال نشوفك 😊</div>';
             return;
           }
 
