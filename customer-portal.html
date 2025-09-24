@@ -15,8 +15,11 @@
             font-family: 'Cairo', sans-serif;
             background: url('image.png') center/cover no-repeat fixed;
             min-height: 100vh;
-            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             position: relative;
+            padding: 20px;
         }
         
         body::before {
@@ -26,104 +29,47 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(255, 255, 255, 0.85);
-            z-index: -1;
-        }
-        
-        .hero-section {
-            background: linear-gradient(135deg, #4a7c59 0%, #5a8a5a 50%, #6ba86b 100%);
-            backdrop-filter: blur(10px);
-            border-radius: 25px;
-            margin: 30px 20px;
-            padding: 80px 20px;
-            text-align: center;
-            color: white;
-            position: relative;
+            background: rgba(0, 0, 0, 0.4);
             z-index: 1;
-            box-shadow: 0 15px 35px rgba(74, 124, 89, 0.3);
-        }
-        
-        .hero-section h1 {
-            font-size: 3.5rem;
-            font-weight: 700;
-            text-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            margin-bottom: 1rem;
-        }
-        
-        .hero-section p {
-            font-size: 1.3rem;
-            opacity: 0.95;
-            font-weight: 400;
         }
         
         .main-card {
-            background: rgba(255,255,255,0.98);
-            backdrop-filter: blur(25px);
-            border-radius: 25px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
-            border: 1px solid rgba(74, 124, 89, 0.4);
-            overflow: hidden;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,.3);
+            padding: 2rem;
+            width: 100%;
+            max-width: 500px;
             position: relative;
-            z-index: 1;
-            margin-top: -20px;
-        }
-        
-        .container {
-            position: relative;
-            z-index: 1;
+            z-index: 2;
         }
         
         .card-header {
-            background: linear-gradient(135deg, #4a7c59 0%, #5a8a5a 50%, #6ba86b 100%);
-            border: none;
-            padding: 50px 30px;
             text-align: center;
-            position: relative;
+            margin-bottom: 2rem;
         }
         
-        .card-header::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="50" cy="50" r="1" fill="rgba(255,255,255,0.1)"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
-            opacity: 0.3;
-        }
-        
-        .icon-circle {
-            width: 90px;
-            height: 90px;
-            background: rgba(255,255,255,0.25);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 25px;
-            font-size: 2.2rem;
-            color: white;
-            backdrop-filter: blur(10px);
-            border: 3px solid rgba(255,255,255,0.4);
-            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
-            position: relative;
-            z-index: 2;
+        .card-header .logo {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 1rem;
+            background: url('logo.jpeg') center/contain no-repeat;
+            background-size: contain;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
         }
         
         .card-header h3 {
-            font-size: 2.2rem;
+            color: #4a7c59;
             font-weight: 700;
-            margin-bottom: 15px;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
-            position: relative;
-            z-index: 2;
+            margin-bottom: 0.5rem;
+            font-size: 2rem;
         }
         
         .card-header p {
+            color: #6c757d;
+            margin: 0;
             font-size: 1.1rem;
-            opacity: 0.95;
-            position: relative;
-            z-index: 2;
         }
         
         .form-control {
@@ -135,74 +81,59 @@
         }
         
         .form-control:focus {
-            border-color: #5a8a5a;
-            box-shadow: 0 0 0 0.2rem rgba(90, 138, 90, 0.25);
+            border-color: #4a7c59;
+            box-shadow: 0 0 0 0.2rem rgba(74, 124, 89, 0.25);
         }
         
         .btn-primary {
-            background: linear-gradient(135deg, #4a7c59 0%, #5a8a5a 50%, #6ba86b 100%);
+            background: #4a7c59;
             border: none;
             border-radius: 15px;
             padding: 15px 30px;
             font-weight: 600;
             font-size: 1.1rem;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(74, 124, 89, 0.3);
         }
         
         .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(74, 124, 89, 0.4);
-            background: linear-gradient(135deg, #3a6c49 0%, #4a7a4a 50%, #5a985a 100%);
+            background: #3a6c49;
         }
         
         .stats-card {
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            border-radius: 20px;
-            border: 2px solid rgba(90, 138, 90, 0.3);
+            background: #f8f9fa;
+            border-radius: 15px;
+            border: 1px solid #e9ecef;
             transition: all 0.3s ease;
             overflow: hidden;
             position: relative;
         }
         
-        .stats-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: linear-gradient(135deg, #4a7c59 0%, #5a8a5a 50%, #6ba86b 100%);
-        }
-        
         .stats-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 15px 30px rgba(90, 138, 90, 0.25);
-            border-color: rgba(90, 138, 90, 0.5);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
         }
         
         .stats-card.success {
-            background: linear-gradient(135deg, #4a7c59 0%, #5a8a5a 50%, #6ba86b 100%);
+            background: #4a7c59;
             color: white;
-            border-color: rgba(255, 255, 255, 0.3);
+            border-color: #4a7c59;
         }
         
         .stats-card.info {
-            background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+            background: #17a2b8;
             color: white;
-            border-color: rgba(255, 255, 255, 0.3);
+            border-color: #17a2b8;
         }
         
         .stats-card.warning {
-            background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+            background: #ffc107;
             color: #212529;
-            border-color: rgba(255, 193, 7, 0.3);
+            border-color: #ffc107;
         }
         
         .stats-card.danger {
-            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            background: #dc3545;
             color: white;
-            border-color: rgba(255, 255, 255, 0.3);
+            border-color: #dc3545;
         }
         
         .stats-number {
@@ -589,144 +520,97 @@
     </style>
 </head>
 <body>
-    <!-- Beautiful Header with White Background -->
-    <nav class="navbar navbar-expand-lg navbar-light" style="background: white; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
-        <div class="container">
-            <a class="navbar-brand text-success d-flex align-items-center" href="customer-portal.html">
-                <div class="logo me-2" style="width: 40px; height: 40px;"></div>
-                <div>
-                    <strong>Big Diet</strong>
-                    <div style="font-size: 0.9rem; opacity: 0.7;">بوابة العميل</div>
-                </div>
-            </a>
+    <div class="main-card">
+        <div class="card-header">
+            <div class="logo"></div>
+            <h3>Big Diet</h3>
+            <p>استعلام عن الاشتراك</p>
         </div>
-    </nav>
+        <form id="customerInquiryForm" class="mb-4">
+            <div class="mb-3">
+                <label for="phoneNumber" class="form-label">رقم الهاتف</label>
+                <input type="tel" class="form-control" id="phoneNumber" 
+                       placeholder="05xxxxxxxx" maxlength="10" required>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">استعلام عن الاشتراك</button>
+        </form>
 
-    <!-- Hero Section -->
-    <div class="hero-section">
-        <div class="container">
-            <div class="row justify-content-center">
-                <div class="col-lg-8 text-center">
-                    <h1 class="display-4 fw-bold mb-3">مرحباً بك في big diet</h1>
-                    <p class="lead mb-4">استعلم عن اشتراكك بسهولة وسرعة</p>
+        <!-- Error Message -->
+        <div id="errorMessage" class="alert alert-danger" style="display: none;">
+            <span id="errorText"></span>
+        </div>
+
+        <!-- Subscription Details Card (Hidden by default) -->
+        <div id="subscriptionDetails" class="fade-in" style="display: none;">
+            <hr class="my-4">
+            <h4 class="text-center mb-4 fw-bold text-success">
+                تفاصيل الاشتراك
+            </h4>
+                            
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <div class="stats-card">
+                        <div class="card-body text-center p-3">
+                            <div class="stats-number" id="customerName">-</div>
+                            <div class="stats-label">اسم العميل</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="stats-card">
+                        <div class="card-body text-center p-3">
+                            <div class="stats-number" id="packageName">-</div>
+                            <div class="stats-label">الباقة الحالية</div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- Main Content -->
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-lg-8 col-md-10">
-                <div class="main-card">
-                    <div class="card-header">
-                        <div class="icon-circle">
-                            <i class="fas fa-search"></i>
-                        </div>
-                        <h3 class="mb-2 fw-bold text-white">استعلام عن الاشتراك</h3>
-                        <p class="mb-0 opacity-90 text-white">ادخل رقم هاتفك للاطلاع على تفاصيل اشتراكك</p>
-                    </div>
-                    <div class="card-body p-5">
-                        <form id="customerInquiryForm" class="mb-4">
-                            <div class="mb-4">
-                                <label for="phoneNumber" class="form-label fw-semibold text-dark mb-3">رقم الهاتف</label>
-                                <div class="input-group input-group-lg">
-                                    <input type="tel" class="form-control" id="phoneNumber" 
-                                           placeholder="05xxxxxxxx" maxlength="10" required>
-                                    <span class="input-group-text">
-                                        <i class="fas fa-phone"></i>
-                                    </span>
-                                </div>
-                                <div class="form-text text-muted mt-2">يرجى إدخال رقم الهاتف المكون من 10 أرقام</div>
-                            </div>
-                            <div class="d-grid">
-                                <button type="submit" class="btn btn-primary btn-lg">
-                                    <i class="fas fa-search me-2"></i>استعلام عن الاشتراك
-                                </button>
-                            </div>
-                        </form>
-
-                        <!-- Error Message -->
-                        <div id="errorMessage" class="alert alert-danger" style="display: none;">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            <span id="errorText"></span>
-                        </div>
-
-                        <!-- Subscription Details Card (Hidden by default) -->
-                        <div id="subscriptionDetails" class="fade-in" style="display: none;">
-                            <hr class="my-5">
-                            <h4 class="text-center mb-4 fw-bold text-success">
-                                <i class="fas fa-user-check me-2"></i>تفاصيل الاشتراك
-                            </h4>
-                            
-                            <div class="row g-4 mb-4">
-                                <div class="col-md-6">
-                                    <div class="stats-card">
-                                        <div class="card-body text-center p-4">
-                                            <div class="stats-number" id="customerName">-</div>
-                                            <div class="stats-label">اسم العميل</div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="stats-card">
-                                        <div class="card-body text-center p-4">
-                                            <div class="stats-number" id="packageName">-</div>
-                                            <div class="stats-label">الباقة الحالية</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="row g-4 mb-4">
-                                <div class="col-md-6">
-                                    <div class="stats-card success">
-                                        <div class="card-body text-center p-4">
-                                            <div class="stats-number" id="daysLeft">-</div>
-                                            <div class="stats-label">الأيام المتبقية</div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="stats-card info">
-                                        <div class="card-body text-center p-4">
-                                            <div class="stats-number" id="endDate">-</div>
-                                            <div class="stats-label">تاريخ الانتهاء</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="row g-4">
-                                <div class="col-md-6">
-                                    <div class="stats-card warning">
-                                        <div class="card-body text-center p-4">
-                                            <div class="stats-number" id="remainingMeals">-</div>
-                                            <div class="stats-label">الوجبات المتبقية</div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="stats-card danger">
-                                        <div class="card-body text-center p-4">
-                                            <div class="stats-number" id="remainingSnacks">-</div>
-                                            <div class="stats-label">السناكس المتبقية</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Recent Visits Section -->
-                            <div class="recent-visits">
-                                <h5 class="fw-bold text-center mb-4">
-                                    <i class="fas fa-history me-2"></i>آخر الزيارات
-                                </h5>
-                                <div id="recentVisitsList">
-                                    <!-- Recent visits will be populated here -->
-                                </div>
-                            </div>
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <div class="stats-card success">
+                        <div class="card-body text-center p-3">
+                            <div class="stats-number" id="daysLeft">-</div>
+                            <div class="stats-label">الأيام المتبقية</div>
                         </div>
                     </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="stats-card info">
+                        <div class="card-body text-center p-3">
+                            <div class="stats-number" id="endDate">-</div>
+                            <div class="stats-label">تاريخ الانتهاء</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="stats-card warning">
+                        <div class="card-body text-center p-3">
+                            <div class="stats-number" id="remainingMeals">-</div>
+                            <div class="stats-label">الوجبات المتبقية</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="stats-card danger">
+                        <div class="card-body text-center p-3">
+                            <div class="stats-number" id="remainingSnacks">-</div>
+                            <div class="stats-label">السناكس المتبقية</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Visits Section -->
+            <div class="recent-visits">
+                <h5 class="fw-bold text-center mb-4">
+                    آخر الزيارات
+                </h5>
+                <div id="recentVisitsList">
+                    <!-- Recent visits will be populated here -->
                 </div>
             </div>
         </div>
