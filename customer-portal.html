@@ -642,7 +642,7 @@
             <!-- Recent Visits Section -->
             <div class="recent-visits">
                 <h5 class="fw-bold text-center mb-4" style="color: #4a7c59; font-size: 1.4rem; text-shadow: 0 1px 2px rgba(0,0,0,0.1);">
-                    آخر الزيارات 🏃‍♂️
+                    آخر زياراتك 🏃‍♂️
                 </h5>
                 <div id="recentVisitsList">
                     <!-- Recent visits will be populated here -->
@@ -721,7 +721,7 @@
         setLoading(isLoading) {
           if (isLoading) {
             this.$submitBtn.disabled = true;
-            this.$submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>جاري البحث... 🔍';
+            this.$submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>دور عليك يا غالي... 🔍';
           } else {
             this.$submitBtn.disabled = false;
             this.$submitBtn.innerHTML = this.originalBtnHTML;
@@ -748,14 +748,14 @@
             // 1) Get customer from Firebase
             const customer = await window.firebaseDB_instance.getCustomerByPhone(phoneNumber);
             if (!customer) {
-              this.showError('لم نجدك في النظام، تأكد من الرقم! 🤔');
+              this.showError('ما لقيناك في النظام، تأكد من الرقم! 🤔');
               return;
             }
 
             // 2) Get customer's active subscription
             const subscription = await window.firebaseDB_instance.getActiveSubscriptionByCustomerId(customer.id);
             if (!subscription) {
-              this.showError('ليس لديك اشتراك نشط حالياً، اشترك معنا! 💪');
+              this.showError('ما عندك اشتراك نشط حالياًعندنا ، اشترك معنا! 💪');
               return;
             }
 
@@ -766,7 +766,7 @@
             await this.displaySubscriptionDetails(customer, subscription, packageData);
           } catch (err) {
             console.error('Error searching customer:', err);
-            this.showError('حدث خطأ، حاول مرة أخرى 😊');
+            this.showError('صار خطأ، حاول مرة ثانية 😊');
           } finally {
             this.setLoading(false);
           }
@@ -802,7 +802,7 @@
           const recent = await window.firebaseDB_instance.listDailyRegistrationsByCustomer(customerId, 10);
 
           if (!recent.length) {
-            this.$recentList.innerHTML = '<div class="text-center text-muted py-4">لم تزرنا بعد! ننتظر زيارتك 😊</div>';
+            this.$recentList.innerHTML = '<div class="text-center text-muted py-4">ما بعد جيتنا ! ننتظر زيارتك 😊</div>';
             return;
           }
 
