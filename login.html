@@ -85,7 +85,7 @@
 
     <div class="text-center mt-3">
       <small class="text-muted">
-        للعملاء: <a href="customer-portal.html" class="text-decoration-none">استعلام عن الاشتراك</a>
+        للعملاء: <a href="/customer-portal" class="text-decoration-none">استعلام عن الاشتراك</a>
       </small>
     </div>
   </div>
@@ -113,7 +113,7 @@
 
     // Already logged in? Go to dashboard.
     if (localStorage.getItem('isLoggedIn') === 'true') {
-      window.location.href = 'dashboard.html';
+      window.location.href = '/dashboard';
     }
 
     const form = document.getElementById('loginForm');
@@ -149,12 +149,12 @@
             localStorage.setItem('isLoggedIn', 'true');
             localStorage.setItem('userRole', 'admin');
             localStorage.setItem('username', username);
-            window.location.href = 'dashboard.html';
+            window.location.href = '/dashboard';
           } else if (username === 'user' && passwordHash === USER_PASS_HASH) {
             localStorage.setItem('isLoggedIn', 'true');
             localStorage.setItem('userRole', 'user');
             localStorage.setItem('username', username);
-            window.location.href = 'pricing.html';
+            window.location.href = '/pricing';
           } else {
             showError('اسم المستخدم أو كلمة المرور غير صحيحة');
             setLoading(false);

@@ -1,7 +1,8 @@
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import {
   getFirestore, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc,
-  collection, getDocs, query, where, orderBy, limit, serverTimestamp
+  collection, getDocs, query, where, orderBy, limit, serverTimestamp,
+  getCountFromServer
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 /* =========================
@@ -38,9 +39,10 @@ function validatePhoneNumber(phone) { return /^\d{10}$/.test(phone); }
 const cache = {
   data: new Map(),
   ttl: {
-    stats: 5 * 60 * 1000,      // 5 minutes for stats
-    activities: 5 * 60 * 1000, // 5 minutes for activities
-    customers: 10 * 60 * 1000,  // 10 minutes for customers
+    stats: 2 * 60 * 1000,      // 2 minutes for stats (more frequent updates)
+    activities: 3 * 60 * 1000, // 3 minutes for activities
+    customers: 15 * 60 * 1000, // 15 minutes for customers (rarely change)
+    subscriptions: 2 * 60 * 1000, // 2 minutes for subscriptions
     other: 5 * 60 * 1000        // 5 minutes for other data
   },
   
@@ -260,9 +262,7 @@ async function getActiveSubscriptionsCount() {
   const today = ymd();
   
   try {
-    // Try to use where query for active subscriptions
-    // Note: Firestore doesn't support multiple where clauses easily for this case
-    // So we'll query active subscriptions and filter by date in memory
+    // Optimize: query only active subscriptions first (reduces dataset size)
     const qy = query(
       collection(db, "subscriptions"),
       where("status", "==", "نشط")
@@ -270,6 +270,7 @@ async function getActiveSubscriptionsCount() {
     const snap = await getDocs(qy);
     
     // Filter by endDate and remainingMeals in memory (smaller dataset now)
+    // This is faster than multiple queries or composite indexes
     const count = snap.docs.filter(d => {
       const data = d.data();
       // Must not be expired (endDate >= today)
@@ -279,7 +280,7 @@ async function getActiveSubscriptionsCount() {
       return true;
     }).length;
     
-    cache.set(cacheKey, count, cache.ttl.stats);
+    cache.set(cacheKey, count, cache.ttl.subscriptions);
     return count;
   } catch (error) {
     // Fallback to full fetch if query fails
@@ -519,14 +520,23 @@ async function getActivities(limitCount = 500) {
   const cached = cache.get(cacheKey);
   if (cached) return cached;
   
-  const snap = await getDocs(collection(db, "activities"));
+  // Optimize: use orderBy and limit in query instead of fetching all
+  const qy = query(
+    collection(db, "activities"),
+    orderBy("date", "desc"),
+    limit(limitCount * 2) // Get more to sort by time in memory
+  );
+  
+  const snap = await getDocs(qy);
   const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  
   // Prefer time24 when present for consistent sorting
   items.sort((a, b) => {
     const ta = `${a.date || ""} ${(a.time24 || a.time || "00:00")}`;
     const tb = `${b.date || ""} ${(b.time24 || b.time || "00:00")}`;
     return new Date(tb) - new Date(ta);
   });
+  
   const result = items.slice(0, limitCount);
   
   cache.set(cacheKey, result, cache.ttl.activities);
@@ -546,28 +556,33 @@ async function getActivitiesByMonth(year, month, limitCount = 500) {
   const cached = cache.get(cacheKey);
   if (cached) return cached;
   
-  // Query activities by date range
+  // Query activities by date range - optimized with orderBy
+  // Note: Firestore requires composite index for multiple where + orderBy
+  // If index doesn't exist, it will fall back to memory filtering
   const qy = query(
     collection(db, "activities"),
     where("date", ">=", startDate),
     where("date", "<=", endDate),
     orderBy("date", "desc"),
-    limit(limitCount)
+    limit(limitCount * 2) // Get more to sort by time in memory
   );
   
   try {
     const snap = await getDocs(qy);
     const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     
-    // Sort by datetime (date + time)
+    // Sort by datetime (date + time) - most recent first
     items.sort((a, b) => {
       const ta = `${a.date || ""} ${(a.time24 || a.time || "00:00")}`;
       const tb = `${b.date || ""} ${(b.time24 || b.time || "00:00")}`;
       return new Date(tb) - new Date(ta);
     });
     
-    cache.set(cacheKey, items, cache.ttl.activities);
-    return items;
+    // Limit after sorting
+    const result = items.slice(0, limitCount);
+    
+    cache.set(cacheKey, result, cache.ttl.activities);
+    return result;
   } catch (error) {
     // If query fails (e.g., missing index), fall back to getActivities and filter
     console.warn('Optimized query failed, falling back to full fetch:', error);
@@ -589,16 +604,16 @@ async function getDashboardStats() {
   const cached = cache.get(cacheKey);
   if (cached) return cached;
   
-  // Optimize: use optimized queries in parallel
-  const [customersSnap, packagesSnap, activeSubscriptions, todayRegs] = await Promise.all([
-    getDocs(collection(db, "customers")),
-    getDocs(collection(db, "packages")),
+  // Optimize: use count queries for better performance (faster than getDocs)
+  const [customersCount, packagesCount, activeSubscriptions, todayRegs] = await Promise.all([
+    getCountFromServer(collection(db, "customers")),
+    getCountFromServer(collection(db, "packages")),
     getActiveSubscriptionsCount(),
     getTodayRegistrations()
   ]);
   
-  const totalCustomers = customersSnap.size;
-  const totalPackages = packagesSnap.size;
+  const totalCustomers = customersCount.data().count;
+  const totalPackages = packagesCount.data().count;
   const todayMealsCollected = todayRegs.reduce((sum, r) => sum + Number(r.meals || 0), 0);
   
   const stats = {

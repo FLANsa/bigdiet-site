@@ -53,7 +53,7 @@
     <!-- Navigation Bar -->
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
         <div class="container">
-            <a class="navbar-brand" href="dashboard.html">
+            <a class="navbar-brand" href="/dashboard">
                 <div class="logo"></div>
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -62,19 +62,19 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="dashboard.html">لوحة التحكم</a>
+                        <a class="nav-link" href="/dashboard">لوحة التحكم</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="customers.html">العملاء</a>
+                        <a class="nav-link" href="/customers">العملاء</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link active" href="subscriptions.html">الاشتراكات</a>
+                        <a class="nav-link active" href="/subscriptions">الاشتراكات</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="daily-registration.html">التسجيل اليومي</a>
+                        <a class="nav-link" href="/daily-registration">التسجيل اليومي</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="packages.html">الباقات</a>
+                        <a class="nav-link" href="/packages">الباقات</a>
                     </li>
                 </ul>
                 <ul class="navbar-nav">
@@ -131,10 +131,15 @@
                     <form id="addSubscriptionForm">
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label for="subscriptionCustomer" class="form-label">اختر العميل</label>
-                                <select class="form-select" id="subscriptionCustomer" required>
-                                    <option value="">-- اختر العميل --</option>
-                                </select>
+                                <label for="subscriptionCustomerSearch" class="form-label">البحث عن العميل</label>
+                                <input type="text" class="form-control" id="subscriptionCustomerSearch" placeholder="أدخل اسم العميل أو رقم الهاتف">
+                                <div id="subscriptionCustomerResults" class="mt-2"></div>
+                                <input type="hidden" id="subscriptionCustomer" required>
+                                <div id="selectedCustomerInfo" class="mt-2" style="display: none;">
+                                    <div class="alert alert-info mb-0">
+                                        <strong>العميل المحدد:</strong> <span id="selectedCustomerName"></span>
+                                    </div>
+                                </div>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="subscriptionPackage" class="form-label">اختر الباقة</label>
@@ -235,7 +240,7 @@
     <script>
         // Check authentication
         if (localStorage.getItem('isLoggedIn') !== 'true') {
-            window.location.href = 'login.html';
+            window.location.href = '/login';
         }
 
         // Helper functions
@@ -249,9 +254,27 @@
         }
         function assert(condition, msg) { if (!condition) { throw new Error(msg); } }
 
+        // Normalize Arabic-Indic digits and strip non-digits for phone comparisons
+        function normalizeDigits(input) {
+            if (!input) return '';
+            const map = {'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9'};
+            return input.replace(/[٠-٩]/g, ch => map[ch] || ch);
+        }
+        function normalizePhone(input) {
+            return normalizeDigits(input).replace(/\D/g, '').slice(0, 10);
+        }
+
+        // Debounce utility for search
+        function debounce(fn, ms=200){ let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), ms); }; }
+
         // Subscription Management
         class SubscriptionManager {
             constructor() {
+                this.selectedCustomer = null;
+                this.$customerSearch = null;
+                this.$customerResults = null;
+                this.$selectedCustomerInfo = null;
+                this.$selectedCustomerName = null;
                 this.init();
             }
 
@@ -265,6 +288,7 @@
                 this.loadSubscriptions();
                 this.loadCustomersAndPackages();
                 this.setupEventListeners();
+                this.setupCustomerSearch();
             }
 
             setLoading(isLoading) {
@@ -327,19 +351,7 @@
             }
 
             async loadCustomersAndPackages() {
-                // Customers
-                const customerSelect = document.getElementById('subscriptionCustomer');
-                const customers = await window.firebaseDB_instance.getCustomers();
-                customers.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-                customerSelect.innerHTML = '<option value="">-- اختر العميل --</option>';
-                customers.forEach(c => {
-                    const opt = document.createElement('option');
-                    opt.value = c.id;
-                    opt.textContent = `${c.name} - ${c.phone}`;
-                    customerSelect.appendChild(opt);
-                });
-
-                // Packages
+                // Packages only (customers are now searched)
                 const packageSelect = document.getElementById('subscriptionPackage');
                 const packages = await window.firebaseDB_instance.getPackages();
                 packages.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
@@ -352,6 +364,70 @@
                     opt.textContent = `${p.name} - ${price} ريال (${meals} وجبة)`;
                     packageSelect.appendChild(opt);
                 });
+            }
+
+            setupCustomerSearch() {
+                this.$customerSearch = document.getElementById('subscriptionCustomerSearch');
+                this.$customerResults = document.getElementById('subscriptionCustomerResults');
+                this.$selectedCustomerInfo = document.getElementById('selectedCustomerInfo');
+                this.$selectedCustomerName = document.getElementById('selectedCustomerName');
+
+                // Normalize query as user types (Arabic-Indic digits supported) - debounced
+                this.$customerSearch.addEventListener('input', debounce(async (e) => {
+                    await this.searchCustomers(e.target.value);
+                }, 250));
+            }
+
+            async searchCustomers(queryRaw) {
+                const query = (queryRaw || '').trim();
+                this.$customerResults.innerHTML = '';
+
+                if (query.length < 2) return;
+
+                const F = window.firebaseDB_instance;
+                const allCustomers = await F.getCustomers();
+
+                // Prepare both name and phone matching; phone supports Arabic-Indic digits
+                const phoneQuery = normalizePhone(query);
+                const lowerQuery = query.toLowerCase();
+
+                const filtered = allCustomers.filter(c => {
+                    const nameOK = (c.name || '').toLowerCase().includes(lowerQuery);
+                    const phoneOK = phoneQuery && (normalizePhone(c.phone || '').includes(phoneQuery));
+                    return nameOK || phoneOK;
+                });
+
+                if (!filtered.length) {
+                    this.$customerResults.innerHTML = '<div class="text-muted">لا يوجد عملاء</div>';
+                    return;
+                }
+
+                filtered.slice(0, 20).forEach(customer => {
+                    const div = document.createElement('div');
+                    div.className = 'border rounded p-2 mb-1';
+                    div.style.cursor = 'pointer';
+                    div.innerHTML = `
+                        <strong>${customer.name || '-'}</strong><br>
+                        <small class="text-muted" dir="ltr">${customer.phone || '-'}</small>
+                    `;
+                    div.addEventListener('click', () => this.selectCustomer(customer));
+                    this.$customerResults.appendChild(div);
+                });
+            }
+
+            selectCustomer(customer) {
+                this.selectedCustomer = customer;
+
+                // Show info
+                this.$selectedCustomerName.textContent = customer.name || '-';
+                this.$selectedCustomerInfo.style.display = 'block';
+
+                // Set hidden input value
+                document.getElementById('subscriptionCustomer').value = customer.id;
+
+                // Clear search UI
+                this.$customerSearch.value = '';
+                this.$customerResults.innerHTML = '';
             }
 
             getStatusBadgeClass(status) {
@@ -376,6 +452,22 @@
                         endEl.value = addDaysRiyadh(this.value, 52);
                     }
                 });
+
+                // Reset customer selection when modal is closed
+                const modal = document.getElementById('addSubscriptionModal');
+                modal.addEventListener('hidden.bs.modal', () => {
+                    this.resetCustomerSelection();
+                });
+            }
+
+            resetCustomerSelection() {
+                this.selectedCustomer = null;
+                if (this.$customerSearch) this.$customerSearch.value = '';
+                if (this.$customerResults) this.$customerResults.innerHTML = '';
+                if (this.$selectedCustomerInfo) this.$selectedCustomerInfo.style.display = 'none';
+                if (document.getElementById('subscriptionCustomer')) {
+                    document.getElementById('subscriptionCustomer').value = '';
+                }
             }
         }
 
@@ -417,6 +509,7 @@
                     });
                     bootstrap.Modal.getInstance(document.getElementById('addSubscriptionModal')).hide();
                     document.getElementById('addSubscriptionForm').reset();
+                    subscriptionManager.resetCustomerSelection();
                     subscriptionManager.loadSubscriptions();
                     alert('تم إضافة الاشتراك بنجاح');
                 }
@@ -540,7 +633,7 @@
             if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
                 localStorage.removeItem('isLoggedIn');
                 localStorage.removeItem('username');
-                window.location.href = 'login.html';
+                window.location.href = '/login';
             }
         }
     </script>
