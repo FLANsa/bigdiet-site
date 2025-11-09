@@ -239,6 +239,12 @@
 
         async init() {
           await waitForFirebaseInstance();
+          // Check and expire subscriptions before loading stats
+          try {
+            await window.firebaseDB_instance.checkAndExpireSubscriptions();
+          } catch (e) {
+            console.error('Error checking expired subscriptions:', e);
+          }
           await this.loadStats();
           await this.loadRecentActivity();
 

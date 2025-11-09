@@ -111,7 +111,28 @@ async function getSubscriptions() {
 }
 
 /**
+ * Check and expire subscriptions that have passed their endDate.
+ * Marks them as "منتهي" even if they have remaining meals/snacks.
+ */
+async function checkAndExpireSubscriptions() {
+  const today = ymd();
+  const subscriptions = await getSubscriptions();
+  const expired = subscriptions.filter(sub => 
+    sub.status === "نشط" && sub.endDate && sub.endDate < today
+  );
+  
+  // Update all expired subscriptions
+  const updates = expired.map(sub => 
+    updateSubscription(sub.id, { status: "منتهي" })
+  );
+  
+  await Promise.all(updates);
+  return expired.length;
+}
+
+/**
  * Returns most-recent active subscription for a customer (or null).
+ * Excludes subscriptions that have expired (endDate < today) even if status is "نشط".
  */
 async function getActiveSubscriptionByCustomerId(customerId) {
   // First get all subscriptions for the customer, then filter and sort in memory
@@ -123,10 +144,18 @@ async function getActiveSubscriptionByCustomerId(customerId) {
   const snap = await getDocs(qy);
   if (snap.empty) return null;
   
-  // Filter active subscriptions and sort by startDate
+  const today = ymd();
+  
+  // Filter active subscriptions that haven't expired and sort by startDate
   const activeSubs = snap.docs
     .map(d => ({ id: d.id, ...d.data() }))
-    .filter(sub => sub.status === "نشط")
+    .filter(sub => {
+      // Must be active status
+      if (sub.status !== "نشط") return false;
+      // Must not be expired (endDate >= today)
+      if (sub.endDate && sub.endDate < today) return false;
+      return true;
+    })
     .sort((a, b) => (b.startDate || "").localeCompare(a.startDate || ""));
   
   return activeSubs.length > 0 ? activeSubs[0] : null;
@@ -277,7 +306,11 @@ async function getDashboardStats() {
     getPackages(),
     getTodayRegistrations()
   ]);
-  const activeSubscriptions = subscriptions.filter(s => s.status === "نشط").length;
+  const today = ymd();
+  // Count only active subscriptions that haven't expired
+  const activeSubscriptions = subscriptions.filter(s => 
+    s.status === "نشط" && (!s.endDate || s.endDate >= today)
+  ).length;
   const todayMealsCollected = todayRegs.reduce((sum, r) => sum + Number(r.meals || 0), 0);
   return {
     totalCustomers: customers.length,
@@ -310,6 +343,7 @@ window.firebaseDB_instance = {
   // Subscriptions
   getSubscriptions, getActiveSubscriptionByCustomerId,
   createSubscription, createSubscriptionFromPackage, updateSubscription, deleteSubscription,
+  checkAndExpireSubscriptions,
 
   // Daily
   addDailyRegistration, deleteDailyRegistration,
