@@ -303,25 +303,17 @@
             this.setActivityLoading();
             const F = window.firebaseDB_instance;
 
-            // Load all activities, then filter current month in Riyadh
-            const [activities, customers] = await Promise.all([
-              F.getActivities(),
-              F.getCustomers()
-            ]);
-            const cMap = new Map(customers.map(c => [c.id, c.name || '']));
+            // Use optimized query to get activities by month
+            const activities = await F.getActivitiesByMonth(this.currentYear, this.currentMonth);
+            
+            // Get only unique customer IDs from activities
+            const customerIds = [...new Set(activities.map(a => a.customerId).filter(Boolean))];
+            
+            // Fetch only needed customer names (optimized)
+            const cMap = await F.getCustomerNamesMap(customerIds);
 
-            // Filter by selected Riyadh month
-            const filtered = activities.filter(a => {
-              const dt = parseActivityDateTimeRiyadh(a.date, a.time);
-              return dt.getFullYear() === this.currentYear && dt.getMonth() === this.currentMonth;
-            });
-
-            // Sort desc by datetime
-            filtered.sort((a, b) => {
-              const da = parseActivityDateTimeRiyadh(a.date, a.time);
-              const db = parseActivityDateTimeRiyadh(b.date, b.time);
-              return db - da;
-            });
+            // Activities are already filtered and sorted by getActivitiesByMonth
+            const filtered = activities;
 
             // Pagination
             const total = filtered.length;
@@ -331,11 +323,12 @@
             const start = (this.currentPage - 1) * this.pageSize;
             const pageItems = filtered.slice(start, start + this.pageSize);
 
-            // Render
+            // Render (optimized: use document fragment for better performance)
             this.$tbody.innerHTML = '';
             if (!pageItems.length) {
               this.$tbody.innerHTML = '<tr><td colspan="5" class="text-center">لا توجد أنشطة</td></tr>';
             } else {
+              const fragment = document.createDocumentFragment();
               pageItems.forEach(a => {
                 const name = cMap.get(a.customerId) || 'عميل غير معروف';
                 const timeText = a.time || '—';
@@ -349,8 +342,9 @@
                   <td>${desc}</td>
                   <td><span class="badge bg-success">مكتمل</span></td>
                 `;
-                this.$tbody.appendChild(tr);
+                fragment.appendChild(tr);
               });
+              this.$tbody.appendChild(fragment);
             }
 
             // Update pagination UI

@@ -33,6 +33,57 @@ function hm(d = nowInRiyadh()) {
 function validatePhoneNumber(phone) { return /^\d{10}$/.test(phone); }
 
 /* =========================
+   Caching System
+========================= */
+const cache = {
+  data: new Map(),
+  ttl: {
+    stats: 5 * 60 * 1000,      // 5 minutes for stats
+    activities: 5 * 60 * 1000, // 5 minutes for activities
+    customers: 10 * 60 * 1000,  // 10 minutes for customers
+    other: 5 * 60 * 1000        // 5 minutes for other data
+  },
+  
+  get(key) {
+    const item = this.data.get(key);
+    if (!item) return null;
+    if (Date.now() > item.expiry) {
+      this.data.delete(key);
+      return null;
+    }
+    return item.value;
+  },
+  
+  set(key, value, ttl = this.ttl.other) {
+    this.data.set(key, {
+      value,
+      expiry: Date.now() + ttl
+    });
+  },
+  
+  clear(key) {
+    if (key) {
+      this.data.delete(key);
+    } else {
+      this.data.clear();
+    }
+  },
+  
+  // Clear cache when data is modified
+  invalidate(pattern) {
+    if (!pattern) {
+      this.data.clear();
+      return;
+    }
+    for (const key of this.data.keys()) {
+      if (key.includes(pattern)) {
+        this.data.delete(key);
+      }
+    }
+  }
+};
+
+/* =========================
    Business Rules (central)
 ========================= */
 const RULES = {
@@ -59,6 +110,10 @@ async function addCustomer({ name, phone }) {
     currentPackage: null,
     createdAt: serverTimestamp()
   }, { merge: true });
+  cache.invalidate('customers');
+  cache.invalidate('stats');
+  // Cache the new customer name
+  cache.set(`customer_name_${phone}`, name, 30 * 60 * 1000);
   return { id: phone };
 }
 async function getCustomerByPhone(phone) {
@@ -67,18 +122,77 @@ async function getCustomerByPhone(phone) {
 }
 async function getCustomerById(id) { return getCustomerByPhone(id); }
 async function getCustomers() {
+  const cacheKey = 'customers';
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
+  
   const snap = await getDocs(collection(db, "customers"));
   const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
   // Most recent registrations first (string yyy-mm-dd sorts fine)
   items.sort((a, b) => (b.registrationDate || "").localeCompare(a.registrationDate || ""));
+  
+  cache.set(cacheKey, items, cache.ttl.customers);
   return items;
+}
+
+/**
+ * Get customer names map for specific customer IDs (optimized)
+ * Only fetches the required customers, not all customers
+ */
+async function getCustomerNamesMap(customerIds) {
+  if (!customerIds || customerIds.length === 0) return new Map();
+  
+  // Remove duplicates and nulls
+  const uniqueIds = [...new Set(customerIds.filter(Boolean))];
+  if (uniqueIds.length === 0) return new Map();
+  
+  // Check cache for each customer
+  const result = new Map();
+  const missingIds = [];
+  
+  for (const id of uniqueIds) {
+    const cacheKey = `customer_name_${id}`;
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      result.set(id, cached);
+    } else {
+      missingIds.push(id);
+    }
+  }
+  
+  // Fetch missing customers in parallel
+  if (missingIds.length > 0) {
+    const fetchPromises = missingIds.map(async (id) => {
+      try {
+        const customer = await getCustomerById(id);
+        const name = customer ? (customer.name || '') : '';
+        const cacheKey = `customer_name_${id}`;
+        // Cache names for 30 minutes (they rarely change)
+        cache.set(cacheKey, name, 30 * 60 * 1000);
+        return { id, name };
+      } catch (e) {
+        console.warn(`Failed to fetch customer ${id}:`, e);
+        return { id, name: '' };
+      }
+    });
+    
+    const fetched = await Promise.all(fetchPromises);
+    fetched.forEach(({ id, name }) => result.set(id, name));
+  }
+  
+  return result;
 }
 async function updateCustomer(id, fields) {
   await updateDoc(doc(db, "customers", id), fields);
+  cache.invalidate('customers');
+  cache.invalidate('stats');
+  cache.invalidate(`customer_name_${id}`); // Invalidate name cache
   return { id };
 }
 async function deleteCustomer(id) {
   await deleteDoc(doc(db, "customers", id));
+  cache.invalidate('customers');
+  cache.invalidate('stats');
   return { id };
 }
 
@@ -86,9 +200,16 @@ async function deleteCustomer(id) {
    PACKAGES
 ========================= */
 async function getPackages() {
+  const cacheKey = 'packages';
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
+  
   const qy = query(collection(db, "packages"), orderBy("name", "asc"));
   const snap = await getDocs(qy);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  
+  cache.set(cacheKey, items, cache.ttl.other);
+  return items;
 }
 async function getPackageById(id) {
   const snap = await getDoc(doc(db, "packages", id));
@@ -97,17 +218,76 @@ async function getPackageById(id) {
 async function addPackage(pkg) {
   // pkg = { name, price, meals, description, status? }
   const ref = await addDoc(collection(db, "packages"), { status: "نشط", ...pkg });
+  cache.invalidate('packages');
+  cache.invalidate('stats');
   return { id: ref.id };
 }
-async function updatePackage(id, fields) { await updateDoc(doc(db, "packages", id), fields); }
-async function deletePackage(id) { await deleteDoc(doc(db, "packages", id)); }
+async function updatePackage(id, fields) {
+  await updateDoc(doc(db, "packages", id), fields);
+  cache.invalidate('packages');
+  cache.invalidate('stats');
+}
+async function deletePackage(id) {
+  await deleteDoc(doc(db, "packages", id));
+  cache.invalidate('packages');
+  cache.invalidate('stats');
+}
 
 /* =========================
    SUBSCRIPTIONS
 ========================= */
 async function getSubscriptions() {
+  const cacheKey = 'subscriptions';
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
+  
   const snap = await getDocs(collection(db, "subscriptions"));
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  
+  cache.set(cacheKey, items, cache.ttl.other);
+  return items;
+}
+
+/**
+ * Get count of active subscriptions (optimized query)
+ * Uses Firestore where clause to filter at database level
+ */
+async function getActiveSubscriptionsCount() {
+  const cacheKey = 'active_subscriptions_count';
+  const cached = cache.get(cacheKey);
+  if (cached !== null) return cached;
+  
+  const today = ymd();
+  
+  try {
+    // Try to use where query for active subscriptions
+    // Note: Firestore doesn't support multiple where clauses easily for this case
+    // So we'll query active subscriptions and filter by date in memory
+    const qy = query(
+      collection(db, "subscriptions"),
+      where("status", "==", "نشط")
+    );
+    const snap = await getDocs(qy);
+    
+    // Filter by endDate in memory (smaller dataset now)
+    const count = snap.docs.filter(d => {
+      const data = d.data();
+      return !data.endDate || data.endDate >= today;
+    }).length;
+    
+    cache.set(cacheKey, count, cache.ttl.stats);
+    return count;
+  } catch (error) {
+    // Fallback to full fetch if query fails
+    console.warn('Optimized query failed, falling back:', error);
+    const all = await getSubscriptions();
+    const today = ymd();
+    const count = all.filter(s => 
+      s.status === "نشط" && (!s.endDate || s.endDate >= today)
+    ).length;
+    cache.set(cacheKey, count, cache.ttl.stats);
+    return count;
+  }
 }
 
 /**
@@ -167,6 +347,9 @@ async function getActiveSubscriptionByCustomerId(customerId) {
  */
 async function createSubscription(sub) {
   const ref = await addDoc(collection(db, "subscriptions"), sub);
+  cache.invalidate('subscriptions');
+  cache.invalidate('stats');
+  cache.invalidate('active_subscriptions_count');
   return { id: ref.id };
 }
 
@@ -187,8 +370,18 @@ async function createSubscriptionFromPackage(args) {
   return { id: ref.id };
 }
 
-async function updateSubscription(id, fields) { await updateDoc(doc(db, "subscriptions", id), fields); }
-async function deleteSubscription(id) { await deleteDoc(doc(db, "subscriptions", id)); }
+async function updateSubscription(id, fields) {
+  await updateDoc(doc(db, "subscriptions", id), fields);
+  cache.invalidate('subscriptions');
+  cache.invalidate('stats');
+  cache.invalidate('active_subscriptions_count');
+}
+async function deleteSubscription(id) {
+  await deleteDoc(doc(db, "subscriptions", id));
+  cache.invalidate('subscriptions');
+  cache.invalidate('stats');
+  cache.invalidate('active_subscriptions_count');
+}
 
 /* =========================
    DAILY REGISTRATIONS
@@ -282,9 +475,14 @@ async function listDailyRegistrationsBetween(startDate, endDate, customerId = nu
 ========================= */
 async function logActivity({ type, customerId = null, description, date = ymd(), time = hm(), time24 = hm() }) {
   const ref = await addDoc(collection(db, "activities"), { type, customerId, description, date, time, time24 });
+  cache.invalidate('activities');
   return { id: ref.id };
 }
 async function getActivities(limitCount = 500) {
+  const cacheKey = `activities_all_${limitCount}`;
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
+  
   const snap = await getDocs(collection(db, "activities"));
   const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
   // Prefer time24 when present for consistent sorting
@@ -293,32 +491,90 @@ async function getActivities(limitCount = 500) {
     const tb = `${b.date || ""} ${(b.time24 || b.time || "00:00")}`;
     return new Date(tb) - new Date(ta);
   });
-  return items.slice(0, limitCount);
+  const result = items.slice(0, limitCount);
+  
+  cache.set(cacheKey, result, cache.ttl.activities);
+  return result;
+}
+
+/**
+ * Get activities filtered by month and year (optimized query)
+ * Uses date range query in Firestore for better performance
+ */
+async function getActivitiesByMonth(year, month, limitCount = 500) {
+  // Calculate date range for the month
+  const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+  const endDate = `${year}-${String(month + 1).padStart(2, '0')}-31`;
+  
+  const cacheKey = `activities_${year}_${month}`;
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
+  
+  // Query activities by date range
+  const qy = query(
+    collection(db, "activities"),
+    where("date", ">=", startDate),
+    where("date", "<=", endDate),
+    orderBy("date", "desc"),
+    limit(limitCount)
+  );
+  
+  try {
+    const snap = await getDocs(qy);
+    const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    
+    // Sort by datetime (date + time)
+    items.sort((a, b) => {
+      const ta = `${a.date || ""} ${(a.time24 || a.time || "00:00")}`;
+      const tb = `${b.date || ""} ${(b.time24 || b.time || "00:00")}`;
+      return new Date(tb) - new Date(ta);
+    });
+    
+    cache.set(cacheKey, items, cache.ttl.activities);
+    return items;
+  } catch (error) {
+    // If query fails (e.g., missing index), fall back to getActivities and filter
+    console.warn('Optimized query failed, falling back to full fetch:', error);
+    const all = await getActivities(limitCount * 2);
+    const filtered = all.filter(a => {
+      if (!a.date) return false;
+      const [y, m] = a.date.split('-').map(Number);
+      return y === year && (m - 1) === month;
+    });
+    return filtered;
+  }
 }
 
 /* =========================
    DASHBOARD STATS
 ========================= */
 async function getDashboardStats() {
-  const [customers, subscriptions, packagesList, todayRegs] = await Promise.all([
-    getCustomers(),
-    getSubscriptions(),
-    getPackages(),
+  const cacheKey = 'dashboard_stats';
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
+  
+  // Optimize: use optimized queries in parallel
+  const [customersSnap, packagesSnap, activeSubscriptions, todayRegs] = await Promise.all([
+    getDocs(collection(db, "customers")),
+    getDocs(collection(db, "packages")),
+    getActiveSubscriptionsCount(),
     getTodayRegistrations()
   ]);
-  const today = ymd();
-  // Count only active subscriptions that haven't expired
-  const activeSubscriptions = subscriptions.filter(s => 
-    s.status === "نشط" && (!s.endDate || s.endDate >= today)
-  ).length;
+  
+  const totalCustomers = customersSnap.size;
+  const totalPackages = packagesSnap.size;
   const todayMealsCollected = todayRegs.reduce((sum, r) => sum + Number(r.meals || 0), 0);
-  return {
-    totalCustomers: customers.length,
+  
+  const stats = {
+    totalCustomers,
     activeSubscriptions,
-    totalPackages: packagesList.length,
+    totalPackages,
     todayRegistrations: todayRegs.length,
     todayMealsCollected
   };
+  
+  cache.set(cacheKey, stats, cache.ttl.stats);
+  return stats;
 }
 
 /* =========================
@@ -335,13 +591,13 @@ window.firebaseDB_instance = {
   validatePhoneNumber,
 
   // Customers
-  addCustomer, getCustomerByPhone, getCustomerById, getCustomers, updateCustomer, deleteCustomer,
+  addCustomer, getCustomerByPhone, getCustomerById, getCustomers, getCustomerNamesMap, updateCustomer, deleteCustomer,
 
   // Packages
   getPackages, getPackageById, addPackage, updatePackage, deletePackage,
 
   // Subscriptions
-  getSubscriptions, getActiveSubscriptionByCustomerId,
+  getSubscriptions, getActiveSubscriptionByCustomerId, getActiveSubscriptionsCount,
   createSubscription, createSubscriptionFromPackage, updateSubscription, deleteSubscription,
   checkAndExpireSubscriptions,
 
@@ -351,5 +607,8 @@ window.firebaseDB_instance = {
   listDailyRegistrationsByCustomer, listDailyRegistrationsBetween,
 
   // Activities & Dashboard
-  logActivity, getActivities, getDashboardStats
+  logActivity, getActivities, getActivitiesByMonth, getDashboardStats,
+  
+  // Cache management (for debugging/clearing)
+  clearCache: (pattern) => cache.invalidate(pattern)
 };
