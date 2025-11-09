@@ -1,5 +1,8 @@
 /* Custom styles for Healthy Food Monthly Subscription System */
 
+/* Arabic font support - @import must be at the top */
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap');
+
 /* RTL Support */
 body {
     direction: rtl;
@@ -26,9 +29,6 @@ body::before {
     position: relative;
     z-index: 1;
 }
-
-/* Arabic font support */
-@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap');
 
 body {
     font-family: 'Cairo', sans-serif;
