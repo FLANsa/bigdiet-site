@@ -275,8 +275,8 @@ async function getActiveSubscriptionsCount() {
       const data = d.data();
       // Must not be expired (endDate >= today)
       if (data.endDate && data.endDate < today) return false;
-      // Must have remaining meals
-      if (Number(data.remainingMeals || 0) === 0) return false;
+      // Must have remaining meals or snacks
+      if (Number(data.remainingMeals || 0) === 0 && Number(data.remainingSnacks || 0) === 0) return false;
       return true;
     }).length;
     
@@ -288,7 +288,8 @@ async function getActiveSubscriptionsCount() {
     const all = await getSubscriptions();
     const today = ymd();
     const count = all.filter(s => 
-      s.status === "نشط" && (!s.endDate || s.endDate >= today) && Number(s.remainingMeals || 0) > 0
+      s.status === "نشط" && (!s.endDate || s.endDate >= today) && 
+      (Number(s.remainingMeals || 0) > 0 || Number(s.remainingSnacks || 0) > 0)
     ).length;
     cache.set(cacheKey, count, cache.ttl.stats);
     return count;
@@ -296,8 +297,8 @@ async function getActiveSubscriptionsCount() {
 }
 
 /**
- * Check and expire subscriptions that have passed their endDate or finished meals.
- * Marks them as "منتهي" if endDate passed or remainingMeals is 0.
+ * Check and expire subscriptions that have passed their endDate or finished meals and snacks.
+ * Marks them as "منتهي" if endDate passed or both remainingMeals and remainingSnacks are 0.
  */
 async function checkAndExpireSubscriptions() {
   const today = ymd();
@@ -306,8 +307,8 @@ async function checkAndExpireSubscriptions() {
     if (sub.status !== "نشط") return false;
     // Expire if endDate passed
     if (sub.endDate && sub.endDate < today) return true;
-    // Expire if meals finished
-    if (Number(sub.remainingMeals || 0) === 0) return true;
+    // Expire if both meals and snacks finished
+    if (Number(sub.remainingMeals || 0) === 0 && Number(sub.remainingSnacks || 0) === 0) return true;
     return false;
   });
   
@@ -322,7 +323,7 @@ async function checkAndExpireSubscriptions() {
 
 /**
  * Returns most-recent active subscription for a customer (or null).
- * Excludes subscriptions that have expired (endDate < today) or finished meals (remainingMeals = 0) even if status is "نشط".
+ * Excludes subscriptions that have expired (endDate < today) or finished meals and snacks (both = 0) even if status is "نشط".
  */
 async function getActiveSubscriptionByCustomerId(customerId) {
   // First get all subscriptions for the customer, then filter and sort in memory
@@ -344,8 +345,8 @@ async function getActiveSubscriptionByCustomerId(customerId) {
       if (sub.status !== "نشط") return false;
       // Must not be expired (endDate >= today)
       if (sub.endDate && sub.endDate < today) return false;
-      // Must have remaining meals
-      if (Number(sub.remainingMeals || 0) === 0) return false;
+      // Must have remaining meals or snacks
+      if (Number(sub.remainingMeals || 0) === 0 && Number(sub.remainingSnacks || 0) === 0) return false;
       return true;
     })
     .sort((a, b) => (b.startDate || "").localeCompare(a.startDate || ""));
@@ -410,20 +411,22 @@ async function addDailyRegistration({ customerId, meals = 0, snacks = 0, notes =
   };
   const ref = await addDoc(collection(db, "dailyRegistrations"), reg);
 
-  // Decrement counters on the active subscription (if any)
-  const sub = await getActiveSubscriptionByCustomerId(customerId);
-  if (sub) {
-    const fields = {};
-    if (meals > 0)  fields.remainingMeals  = Math.max(0, Number(sub.remainingMeals || 0)  - meals);
-    if (snacks > 0) fields.remainingSnacks = Math.max(0, Number(sub.remainingSnacks || 0) - snacks);
-    
-    // If meals finished, mark subscription as expired
-    if (fields.remainingMeals !== undefined && fields.remainingMeals === 0) {
-      fields.status = "منتهي";
+    // Decrement counters on the active subscription (if any)
+    const sub = await getActiveSubscriptionByCustomerId(customerId);
+    if (sub) {
+      const fields = {};
+      if (meals > 0)  fields.remainingMeals  = Math.max(0, Number(sub.remainingMeals || 0)  - meals);
+      if (snacks > 0) fields.remainingSnacks = Math.max(0, Number(sub.remainingSnacks || 0) - snacks);
+      
+      // If both meals and snacks finished, mark subscription as expired
+      const finalMeals = fields.remainingMeals !== undefined ? fields.remainingMeals : Number(sub.remainingMeals || 0);
+      const finalSnacks = fields.remainingSnacks !== undefined ? fields.remainingSnacks : Number(sub.remainingSnacks || 0);
+      if (finalMeals === 0 && finalSnacks === 0) {
+        fields.status = "منتهي";
+      }
+      
+      if (Object.keys(fields).length) await updateSubscription(sub.id, fields);
     }
-    
-    if (Object.keys(fields).length) await updateSubscription(sub.id, fields);
-  }
 
   return { id: ref.id };
 }
@@ -446,10 +449,10 @@ async function deleteDailyRegistration(id) {
         .sort((a, b) => (b.startDate || "").localeCompare(a.startDate || ""));
       const sub = subs[0];
       
-      if (sub) {
-        const fields = {};
-        if (r.meals  > 0) fields.remainingMeals  = Number(sub.remainingMeals  || 0) + r.meals;
-        if (r.snacks > 0) fields.remainingSnacks = Number(sub.remainingSnacks || 0) + r.snacks;
+    if (sub) {
+      const fields = {};
+      if (r.meals  > 0) fields.remainingMeals  = Number(sub.remainingMeals  || 0) + r.meals;
+      if (r.snacks > 0) fields.remainingSnacks = Number(sub.remainingSnacks || 0) + r.snacks;
         
         // If meals were restored and subscription was expired, reactivate it
         if (fields.remainingMeals > 0 && sub.status === "منتهي" && 
@@ -457,7 +460,7 @@ async function deleteDailyRegistration(id) {
           fields.status = "نشط";
         }
         
-        if (Object.keys(fields).length) await updateSubscription(sub.id, fields);
+      if (Object.keys(fields).length) await updateSubscription(sub.id, fields);
       }
     }
   }
